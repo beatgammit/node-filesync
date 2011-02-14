@@ -1,3 +1,8 @@
+/*
+ * Copyright 2011 T. Jameson Little AJ ONeal
+ * MIT Licensed
+ */
+
 var connect = require('connect'),
 	crypto = require('crypto'),
 	fs = require('fs'),

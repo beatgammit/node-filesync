@@ -1,3 +1,8 @@
+/*
+ * Copyright 2011 T. Jameson Little AJ ONeal
+ * MIT Licensed
+ */
+
 var http = require('http'),
 	fs = require('fs'),
 	path = require('path'),
