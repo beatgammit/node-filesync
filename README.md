@@ -8,6 +8,7 @@ Client
 ======
 
 The client communicates with the server through a websocket and pulls updates from the server when necessary. The various components are:
+
 * Watched files database
     * Implemented with PostgreSQL
 	* Updated on filesystem events (inotify or similar)
@@ -27,6 +28,7 @@ Server
 ======
 
 The server communicates changes through open websockets with clients and serves file upload and download requests. The particur components are as follows:
+
 * File database- implemented with CouchDB
     * Key- md5 hash of file
 	* Value- owners, file data, and location of file on server
