@@ -2,6 +2,7 @@
   "use strict";
 
   var http = require('http'),
+    fs = require('fs'),
     FileApi = require('file-api'),
     File = require('file-api').File,
     FormData = require('file-api').FormData;
@@ -21,10 +22,11 @@
       stats.forEach(function (stat) {
         var crypto = require('crypto'),
           path = stat.path,
-          mtime = stat.mtime,
+          mtime = stat.mtime.valueOf(),
           size = stat.size,
           qmd5 = crypto.createHash("md5").update("" + mtime + size + path).digest("hex");
 
+        console.log(qmd5, "" + mtime, size, path);
         qstats.push([path, mtime, size, qmd5]);
       });
       formData.append('stats', JSON.stringify(qstats));
@@ -81,8 +83,10 @@
     sendBody();
   }
 
-  create(process.argv[2] || 'localhost', process.argv[3] || 3000, ["./test/file3.ogg"]);
-  // Does work on keep-alive
-  // Does work with content-length
-  // Does work when chunked (when content-length is commented out)
+  var path = "./test/file5.txt"
+  fs.stat(path, function (err, stat) {
+    stat.path = path;
+    create(process.argv[2] || 'www.beatgammit.com', process.argv[3] || 8022, [stat]);
+  });
+
 }());
