@@ -43,6 +43,10 @@ FileStat.prototype = {
 			hash = crypto.createHash(hashAlgo).update(hashData).digest("hex");
 
 			matches = this.qmd5 ? (this.qmd5 == hash) : true;
+
+			this.qmd5 = hash;
+
+			console.log(this, hash);
 			
 			callback(matches, hash);
 		}
@@ -70,7 +74,7 @@ function saveFile(filePath, fileStat, callback){
 		var hashVal = hash.digest("hex"), m, newPath;
 		
 		// if we have a md5sum and they don't match, abandon ship
-		if(md5sum && md5sum != hashVal){
+		if(fileStat.md5 && fileStat.md5 != hashVal){
 			// we don't care about the callback
 			fs.unlink(filePath);
 			callback(false);
@@ -125,12 +129,14 @@ function handleUpload(req, res, next){
 								putKeyValue(hash, newPath);
 							}else{
 								res.writeHead(404, {'Content-Type': 'application/json'});
-								res.end({err: "File did not save"});
+								tFileStat.err = "File did not save";
+								res.end(JSON.stringify(tFileStat));
 							}
 						});
 					}else{
 						res.writeHead(404, {'Content-Type': 'application/json'});
-						res.end({err: "Sum not equal"});
+						tFileStat.err = "Sum not equal";
+						res.end(JSON.stringify(tFileStat));
 					}
 				});
 			});
