@@ -49,16 +49,10 @@ FileStat.prototype = {
 	}
 };
 
-function saveFile(filePath, md5sum, callback){
+function saveFile(filePath, fileStat, callback){
 	var readStream,
 		hash = crypto.createHash(hashAlgo);
 
-	// if this method was called without the second parameter
-	if(!callback && 'function' == typeof md5sum){
-		callback = md5sum;
-		md5sum = undefined;
-	}
-	
 	readStream = fs.createReadStream(filePath);
 
 	readStream.on('data', function(data){
@@ -74,13 +68,15 @@ function saveFile(filePath, md5sum, callback){
 
 	readStream.on('end', function(){
 		var hashVal = hash.digest("hex"), m, newPath;
-
+		
 		// if we have a md5sum and they don't match, abandon ship
 		if(md5sum && md5sum != hashVal){
 			// we don't care about the callback
 			fs.unlink(filePath);
 			callback(false);
 		}else{
+			this.md5 = hashVal;
+
 			m = hashVal.match(regex);
 			newPath = path.join(doc_root, m[1], m[2], m[3], m[4]);
 
@@ -97,6 +93,7 @@ function saveFile(filePath, md5sum, callback){
 				}else{
 					moveFile(filePath, tJoin);
 				}
+				this.path = newPath;
 			});
 			callback(true, newPath);
 		}
@@ -120,16 +117,23 @@ function handleUpload(req, res, next){
 					var oldPath;
 					if(equal){
 						oldPath = files[hash].path;
-						saveFile(oldPath, this.md5, function(success, path){
+						saveFile(oldPath, this, function(success, newPath){
 							if(success){
-								putKeyValue(hash, path);
+								res.writeHead(200, {'Content-Type': 'application/json'});
+								res.end(JSON.stringify(tFileStat));
+
+								putKeyValue(hash, newPath);
+							}else{
+								res.writeHead(404, {'Content-Type': 'application/json'});
+								res.end({err: "File did not save"});
 							}
 						});
+					}else{
+						res.writeHead(404, {'Content-Type': 'application/json'});
+						res.end({err: "Sum not equal"});
 					}
 				});
 			});
-			res.writeHead(200, {'Content-Type': 'text/plain'});
-			res.end("Files processed");
 		});
 	}else{
 		next();
