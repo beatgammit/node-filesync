@@ -1,40 +1,65 @@
 /*
- * Copyright 2011 T. Jameson Little AJ ONeal
+ * Copyright 2011 T. Jameson Little, AJ ONeal
  * MIT Licensed
  */
+//(function(){
 
-var connect = require('connect'),
+"use strict";
+var require,
+	connect = require('connect'),
 	crypto = require('crypto'),
 	fs = require('fs'),
-	util = require('utils'),
+	util = require('util'),
 	path = require('path'),
 	exec = require('child_process').exec,
-	form = require('connect-form');
-
-var hashAlgo = "md5",
-	fileQueue = new Array(),
+	form = require('connect-form'),
+	staticProvider = require("./static"),
+	couchdb = require('couchdb-tmp'),
+	client = couchdb.createClient(5984, '192.168.1.100'),
+	filesyncdb = client.db('filesync'),
+	hashAlgo = "md5",
 	regex = /(..)(..)(..)(..).*/,
-	doc_root = "./media/";
+	doc_root = "./media/",
+	server;
 
 function moveFile(oldPath, newPath){
+	// try to rename first, copy as a backup plan
 	fs.rename(oldPath, newPath, function(err){
+		var readStream, writeStream;
 		if(err){
 			console.log("Move Error: " + err);
 
 			// backup plan
-			var is = fs.createReadStream(oldPath)
-			var os = fs.createWriteStream(newPath);
+			readStream = fs.createReadStream(oldPath);
+			writeStream = fs.createWriteStream(newPath);
 
-			util.pump(is, os, function() {
-			    fs.unlinkSync(oldPath);
+			util.pump(readStream, writeStream, function() {
+				fs.unlinkSync(oldPath);
 			});
 		}
 	});
 }
 
 function putKeyValue(key, value){
-	console.log("Key: " + key);
-	console.log("Value: " + value);
+	var docData = {
+		'key': key,
+		'value': value
+	};
+	filesyncdb.getDoc(value, function(err, doc){
+		if(doc){
+			docData = doc;
+			doc['value'] = value;
+		}
+
+		filesyncdb.saveDoc(key, docData, function(err, ok){
+			if(err){
+				console.log("DBError: " + JSON.stringify(err));
+			}else{
+				console.log("Key: " + key);
+				console.log("Value: " + value);
+			}
+		});
+	});
 }
 
 function FileStat(){
@@ -43,11 +68,11 @@ function FileStat(){
 FileStat.prototype = {
 	checkSum: function(callback){
 		var hash, matches,
-			hashData = "" + this.mtime + this.size + this.path;
+			hashData = this.mtime.toString() + this.size.toString() + this.path;
 		if(this.path && this.mtime && this.size){
 			hash = crypto.createHash(hashAlgo).update(hashData).digest("hex");
 
-			matches = this.qmd5 ? (this.qmd5 == hash) : true;
+			matches = this.qmd5 ? (this.qmd5 === hash) : true;
 
 			this.qmd5 = hash;
 
@@ -79,7 +104,7 @@ function saveFile(filePath, fileStat, callback){
 		var hashVal = hash.digest("hex"), m, newPath;
 		
 		// if we have a md5sum and they don't match, abandon ship
-		if(fileStat.md5 && fileStat.md5 != hashVal){
+		if(fileStat.md5 && fileStat.md5 !== hashVal){
 			// we don't care about the callback
 			fs.unlink(filePath);
 			callback(false);
@@ -111,52 +136,59 @@ function saveFile(filePath, fileStat, callback){
 
 function handleUpload(req, res, next){
 	var tFileStat;
-	if(req.form){
-		req.form.complete(function(err, fields, files){
-			fields.stats = JSON.parse(fields.stats);
-			fields.statsHeader = JSON.parse(fields.statsHeader);
-			fields.stats.forEach(function(item, index, thisArray){
-				tFileStat = new FileStat();
+	if(!req.form){
+		return next();
+	}
 
-				item.forEach(function(field, index, thisArray){
-					tFileStat[fields.statsHeader[index]] = field;
-				});
+	req.form.complete(function(err, fields, files){
 
-				tFileStat.checkSum(function(equal, hash){
-					var oldPath;
-					if(equal){
-						oldPath = files[hash].path;
-						saveFile(oldPath, this, function(success, newPath){
-							if(success){
-								res.writeHead(200, {'Content-Type': 'application/json'});
-								res.end(JSON.stringify(tFileStat));
+		fields.stats = JSON.parse(fields.stats);
+		fields.statsHeader = JSON.parse(fields.statsHeader);
+		fields.stats.forEach(function(item, index, thisArray){
+			tFileStat = new FileStat();
 
-								putKeyValue(hash, newPath);
-							}else{
-								res.writeHead(404, {'Content-Type': 'application/json'});
-								tFileStat.err = "File did not save";
-								res.end(JSON.stringify(tFileStat));
-							}
-						});
+			item.forEach(function(field, index, thisArray){
+				tFileStat[fields.statsHeader[index]] = field;
+			});
+
+			tFileStat.checkSum(function(equal, hash){
+				var oldPath;
+				if(!equal){
+					tFileStat.err = "Sum not equal";
+					res.writeHead(200, {'Content-Type': 'application/json'});
+					res.write(JSON.stringify(tFileStat));
+					res.end();
+					return;
+				}
+
+				oldPath = files[hash].path;
+				saveFile(oldPath, this, function(success, newPath){
+					if(success){
+						res.writeHead(200, {'Content-Type': 'application/json'});
+						res.write(JSON.stringify(tFileStat));
+						res.end();
+
+						putKeyValue(hash, newPath);
 					}else{
-						res.writeHead(404, {'Content-Type': 'application/json'});
-						tFileStat.err = "Sum not equal";
-						res.end(JSON.stringify(tFileStat));
+						tFileStat.err = "File did not save";
+						res.writeHead(200, {'Content-Type': 'application/json'});
+						res.write(JSON.stringify(tFileStat));
+						res.end();
 					}
 				});
 			});
 		});
-	}else{
-		next();
-	}
+	});
 }
 
-var server = connect.createServer(
+server = connect.createServer(
 	form({keepExtensions: true}),
 	handleUpload,
-	connect.staticProvider()
+	staticProvider()
 );
 
 server.listen(8022);
 
 console.log("Server listening on port 8022");
+
+//})();
