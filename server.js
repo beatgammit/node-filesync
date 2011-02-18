@@ -17,6 +17,7 @@ var require,
 	couchdb = require('couchdb-tmp'),
 	client = couchdb.createClient(5984, '192.168.1.100'),
 	filesyncdb = client.db('filesync'),
+	FileStat = require('./filestat.js'),
 	hashAlgo = "md5",
 	regex = /(..)(..)(..)(..).*/,
 	doc_root = "./media/",
@@ -45,7 +46,7 @@ function putKeyValue(key, value){
 		'key': key,
 		'value': value
 	};
-	filesyncdb.getDoc(value, function(err, doc){
+	filesyncdb.getDoc(key, function(err, doc){
 		if(doc){
 			docData = doc;
 			doc['value'] = value;
@@ -56,34 +57,13 @@ function putKeyValue(key, value){
 				console.log("DBError: " + JSON.stringify(err));
 			}else{
 				console.log("Key: " + key);
-				console.log("Value: " + value);
+				console.log("Value: " + JSON.stringify(value));
 			}
 		});
 	});
 }
 
-function FileStat(){
-}
-
-FileStat.prototype = {
-	checkSum: function(callback){
-		var hash, matches,
-			hashData = this.mtime.toString() + this.size.toString() + this.path;
-		if(this.path && this.mtime && this.size){
-			hash = crypto.createHash(hashAlgo).update(hashData).digest("hex");
-
-			matches = this.qmd5 ? (this.qmd5 === hash) : true;
-
-			this.qmd5 = hash;
-
-			console.log(this, hash);
-			
-			callback(matches, hash);
-		}
-	}
-};
-
-function saveFile(filePath, fileStat, callback){
+function readFile(filePath, callback){
 	var readStream,
 		hash = crypto.createHash(hashAlgo);
 
@@ -97,40 +77,93 @@ function saveFile(filePath, fileStat, callback){
 		console.log("Read Error: " + err.toString());
 		readStream.destroy();
 		fs.unlink(filePath);
-		throw err;
+		callback(err);
 	});
 
 	readStream.on('end', function(){
-		var hashVal = hash.digest("hex"), m, newPath;
-		
-		// if we have a md5sum and they don't match, abandon ship
-		if(fileStat.md5 && fileStat.md5 !== hashVal){
-			// we don't care about the callback
-			fs.unlink(filePath);
-			callback(false);
-		}else{
-			this.md5 = hashVal;
+		callback(undefined, hash.digest("hex"));
+	});
+}
 
-			m = hashVal.match(regex);
-			newPath = path.join(doc_root, m[1], m[2], m[3], m[4]);
+function saveFile(md5, fileStat, callback){
+	var m, newPath;
+	// if we have an md5sum and they don't match, abandon ship
+	if(fileStat.md5 && fileStat.md5 !== md5){
+		// we don't care about the callback of unlink
+		fs.unlink(filePath);
+		callback(false);
+		return;
+	}
 
-			path.exists(newPath, function(exists){
-				var tJoin = path.join(newPath, m[0]);
+	// just in case this hasn't been set yet
+	fileStat.md5 = md5;
 
-				if(!exists){
-					exec('mkdir -p ' + newPath, function(err, stdout, stderr){
-						console.log("Err: " + (err ? err : "none"));
-						console.log("stdout: " + (stdout ? stdout : "none"));
-						console.log("stderr: " + (stderr ? stderr : "none"));
-						moveFile(filePath, tJoin);
-					});
-				}else{
-					moveFile(filePath, tJoin);
+	m = md5.match(regex);
+	newPath = path.join(doc_root, m[1], m[2], m[3], m[4]);
+
+	path.exists(newPath, function(exists){
+		fileStat.path = path.join(newPath, m[0]);
+		if(!exists){
+			exec('mkdir -p ' + newPath, function(err, stdout, stderr){
+				var err;
+				if(err || stderr){
+					err = {error: err, stderr: stderr};
 				}
-				this.path = newPath;
+
+				console.log("Err: " + (err ? err : "none"));
+				console.log("stdout: " + (stdout ? stdout : "none"));
+				console.log("stderr: " + (stderr ? stderr : "none"));
+				moveFile(filePath, fileStat.path);
+
+				callback(err, fileStat);
 			});
-			callback(true, newPath);
+		}else{
+			moveFile(filePath, tJoin);
+
+			callback(undefined, fileStat);
 		}
+	});
+}
+
+function compileFileStats(statsHeader, stats){
+	var fileStats = [];
+	stats.forEach(function(item, index, statsArray){
+		tFileStat = new FileStat();
+
+		item.forEach(function(field, index, itemArray){
+			tFileStat[statsHeader[index]] = field;
+		});
+		fileStats.push(tFileStat);
+	});
+	return fileStats;
+}
+
+function uploadFile(tFileStat, files, callback){
+	tFileStat.checkSum(function(equal, hash){
+		var oldPath;
+		if(!equal){
+			tFileStat.err = "Sum not equal";
+			callback(tFileStat);
+			return;
+		}
+
+		oldPath = files[hash].path;
+		readFile(oldPath, function(err, md5){
+			if(!err){
+				saveFile(md5, this, function(err, fileStat){
+					if(success){
+						putKeyValue(hash, fileStat);
+						callback(fileStat);
+					}else{
+						fileStat.err = "File did not save";
+						callback(fileStat);
+					}
+				});
+			}else{
+				tFileStat.err = err;
+				callback(tFileStat);
+			}
+		});
 	});
 }
 
@@ -141,43 +174,23 @@ function handleUpload(req, res, next){
 	}
 
 	req.form.complete(function(err, fields, files){
+		var fileStats;
 
-		fields.stats = JSON.parse(fields.stats);
 		fields.statsHeader = JSON.parse(fields.statsHeader);
-		fields.stats.forEach(function(item, index, thisArray){
-			tFileStat = new FileStat();
+		fields.stats = JSON.parse(fields.stats);
 
-			item.forEach(function(field, index, thisArray){
-				tFileStat[fields.statsHeader[index]] = field;
-			});
+		fileStats = compileFileStats(fields.statsHeader, fields.stats);
 
-			tFileStat.checkSum(function(equal, hash){
-				var oldPath;
-				if(!equal){
-					tFileStat.err = "Sum not equal";
-					res.writeHead(200, {'Content-Type': 'application/json'});
-					res.write(JSON.stringify(tFileStat));
-					res.end();
-					return;
-				}
+		res.writeHead(200, {'Content-Type': 'application/json'});
 
-				oldPath = files[hash].path;
-				saveFile(oldPath, this, function(success, newPath){
-					if(success){
-						res.writeHead(200, {'Content-Type': 'application/json'});
-						res.write(JSON.stringify(tFileStat));
-						res.end();
-
-						putKeyValue(hash, newPath);
-					}else{
-						tFileStat.err = "File did not save";
-						res.writeHead(200, {'Content-Type': 'application/json'});
-						res.write(JSON.stringify(tFileStat));
-						res.end();
-					}
-				});
+		fileStats.forEach(function(tFileStat, index, thiSArray){
+			uploadFile(tFileStat, files, function(fileStat){
+				console.log(JSON.stringify(tFileStat));
+				res.write(JSON.stringify(fileStat));
 			});
 		});
+
+		res.end();
 	});
 }
 
