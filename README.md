@@ -1,5 +1,5 @@
 About
-====
+=====
 
 Node-filesync is a file synchronization system utilizing NodeJS in both the client and server.
 
