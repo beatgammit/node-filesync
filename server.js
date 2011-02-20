@@ -2,210 +2,217 @@
  * Copyright 2011 T. Jameson Little, AJ ONeal
  * MIT Licensed
  */
-//(function(){
+var require;
+(function () {
+  "use strict";
 
-"use strict";
-var require,
-	connect = require('connect'),
-	crypto = require('crypto'),
-	fs = require('fs'),
-	util = require('util'),
-	path = require('path'),
-	exec = require('child_process').exec,
-	form = require('connect-form'),
-	staticProvider = require("./static"),
-	couchdb = require('couchdb-tmp'),
-	client = couchdb.createClient(5984, '192.168.1.100'),
-	filesyncdb = client.db('filesync'),
-	FileStat = require('./filestat.js'),
-	hashAlgo = "md5",
-	regex = /(..)(..)(..)(..).*/,
-	doc_root = "./media/",
-	server;
+  require('noop');
 
-function moveFile(oldPath, newPath){
-	// try to rename first, copy as a backup plan
-	fs.rename(oldPath, newPath, function(err){
-		var readStream, writeStream;
-		if(err){
-			console.log("Move Error: " + err);
+  var connect = require('connect'),
+    crypto = require('crypto'),
+    fs = require('fs'),
+    util = require('util'),
+    path = require('path'),
+    exec = require('child_process').exec,
+    form = require('connect-form'),
+    staticProvider = require("./static"),
+    couchdb = require('couchdb-tmp'),
+    client = couchdb.createClient(5984, '192.168.1.100'),
+    filesyncdb = client.db('filesync'),
+    FileStat = require('./filestat.js'),
+    hashAlgo = "md5",
+    regex = /(..)(..)(..)(..).*/,
+    doc_root = "./media/",
+    server;
 
-			// backup plan
-			readStream = fs.createReadStream(oldPath);
-			writeStream = fs.createWriteStream(newPath);
+  // try to rename first, copy as a backup plan
+  fs.move = function (oldPath, newPath, cb) {
+    fs.rename(oldPath, newPath, function(err){
+      if (!err) {
+        return doop(cb);
+      }
 
-			util.pump(readStream, writeStream, function() {
-				fs.unlinkSync(oldPath);
-			});
-		}
-	});
-}
+      // backup plan
+      console.log("Move Error: " + err);
+      var readStream = fs.createReadStream(oldPath),
+        writeStream = fs.createWriteStream(newPath);
 
-function putKeyValue(key, value){
-	var docData = {
-		'key': key,
-		'value': value
-	};
-	filesyncdb.getDoc(key, function(err, doc){
-		if(doc){
-			docData = doc;
-			doc['value'] = value;
-		}
+      util.pump(readStream, writeStream, function(err) {
+        if (err) {
+          return doop(cb, err);
+        }
+        fs.unlinkSync(oldPath, cb);
+      });
+    });
+  };
 
-		filesyncdb.saveDoc(key, docData, function(err, ok){
-			if(err){
-				console.log("DBError: " + JSON.stringify(err));
-			}else{
-				console.log("Key: " + key);
-				console.log("Value: " + JSON.stringify(value));
-			}
-		});
-	});
-}
+  function saveToDb(key, value){
+    var docData = {
+      'key': key,
+      'value': value
+    };
+    filesyncdb.getDoc(key, function(err, doc){
+      if(doc){
+        docData = doc;
+        doc['value'] = value;
+      }
 
-function readFile(filePath, callback){
-	var readStream,
-		hash = crypto.createHash(hashAlgo);
+      filesyncdb.saveDoc(key, docData, function(err, ok){
+        if(err){
+          console.log("DBError: " + JSON.stringify(err));
+        }else{
+          console.log("Key: " + key);
+          console.log("Value: " + JSON.stringify(value));
+        }
+      });
+    });
+  }
 
-	readStream = fs.createReadStream(filePath);
+  function readFile(filePath, callback){
+    var readStream,
+      hash = crypto.createHash(hashAlgo);
 
-	readStream.on('data', function(data){
-		hash.update(data);
-	});
+    readStream = fs.createReadStream(filePath);
 
-	readStream.on('error', function(err){
-		console.log("Read Error: " + err.toString());
-		readStream.destroy();
-		fs.unlink(filePath);
-		callback(err);
-	});
+    readStream.on('data', function(data){
+      hash.update(data);
+    });
 
-	readStream.on('end', function(){
-		callback(undefined, hash.digest("hex"));
-	});
-}
+    readStream.on('error', function(err){
+      console.log("Read Error: " + err.toString());
+      readStream.destroy();
+      fs.unlink(filePath);
+      callback(err);
+    });
 
-function saveFile(md5, fileStat, filePath, callback){
-	var m, newPath;
-	// if we have an md5sum and they don't match, abandon ship
-	if(fileStat.md5 && fileStat.md5 !== md5){
-		// we don't care about the callback of unlink
-		callback(false);
-		return;
-	}
+    readStream.on('end', function(){
+      callback(null, hash.digest("hex"));
+    });
+  }
 
-	// just in case this hasn't been set yet
-	fileStat.md5 = md5;
+  function saveToFs(fileStat, filePath, callback){
+    var m, newPath;
 
-	m = md5.match(regex);
-	newPath = path.join(doc_root, m[1], m[2], m[3], m[4]);
+    m = fileStat.md5.match(regex);
+    newPath = path.join(doc_root, m[1], m[2], m[3], m[4]);
 
-	path.exists(newPath, function(exists){
-		fileStat.path = path.join(newPath, m[0]);
-		if(!exists){
-			exec('mkdir -p ' + newPath, function(err, stdout, stderr){
-				var err;
-				if(err || stderr){
-					err = {error: err, stderr: stderr};
-				}
+    path.exists(newPath, function(exists){
+      fileStat.originalPath = fileStat.path;
+      fileStat.path = path.join(newPath, m[0]);
 
-				console.log("Err: " + (err ? err : "none"));
-				console.log("stdout: " + (stdout ? stdout : "none"));
-				console.log("stderr: " + (stderr ? stderr : "none"));
-				moveFile(filePath, fileStat.path);
+      if(exists){
+        fs.move(filePath, fileStat.path, function (err) {
+          callback(err, fileStat);
+        });
+        return;
+      }
 
-				callback(err, fileStat);
-			});
-		}else{
-			moveFile(filePath, fileStat.path);
+      exec('mkdir -p ' + newPath, function(err, stdout, stderr){
+        if(err || stderr) {
+          console.log("Err: " + (err ? err : "none"));
+          console.log("stderr: " + (stderr ? stderr : "none"));
+          return callback(err, fileStat, stderr);
+        }
 
-			callback(undefined, fileStat);
-		}
-	});
-}
+        console.log("stdout: " + (stdout ? stdout : "none"));
+        fs.move(filePath, fileStat.path, function (err) {
+          callback(err, fileStat, stderr);
+        });
+      });
+    });
+  }
 
-function compileFileStats(statsHeader, stats){
-	var fileStats = [];
-	stats.forEach(function(item, index, statsArray){
-		tFileStat = FileStat();
+  function addKeysToFileStats(fieldNames, stats){
+    var fileStats = [];
 
-		item.forEach(function(field, index, itemArray){
-			tFileStat[statsHeader[index]] = field;
-		});
-		fileStats.push(tFileStat);
-	});
-	return fileStats;
-}
+    stats.forEach(function(item) {
+      fileStat = FileStat();
 
-function uploadFile(tFileStat, files, callback){
-	tFileStat.checksum(function(equal, hash){
-		var oldPath;
-		if(!equal){
-			tFileStat.err = "Sum not equal";
-			callback(tFileStat);
-			return;
-		}
+      item.forEach(function(fieldValue, i) {
+        fileStat[fieldNames[i]] = fieldValue;
+      });
 
-		oldPath = files[hash].path;
-		readFile(oldPath, function(err, md5){
-			if(!err){
-				saveFile(md5, this, oldPath, function(err, fileStat){
-					if(err){
-						fileStat.unlink(oldPath);
-						fileStat.err = "File did not save";
-						callback(fileStat);
-					}else{
-						putKeyValue(hash, fileStat);
-						callback(fileStat);
-					}
-				});
-			}else{
-				tFileStat.err = err;
-				callback(tFileStat);
-			}
-		});
-	});
-}
+      fileStats.push(fileStat);
+    });
 
-function handleUpload(req, res, next){
-	var tFileStat;
-	if(!req.form){
-		return next();
-	}
+    return fileStats;
+  }
 
-	req.form.complete(function(err, fields, files){
-		var fileStats;
+  function importFile(fileStat, files, callback){
+    var oldPath;
 
-		fields.statsHeader = JSON.parse(fields.statsHeader);
-		fields.stats = JSON.parse(fields.stats);
+    oldPath = files[hash].path;
+    readFile(oldPath, function(err, md5){
+      if (err) {
+        fileStat.err = err;
+        callback(err, fileStat);
+        return;
+      }
 
-		fileStats = compileFileStats(fields.statsHeader, fields.stats);
+      // if we have an md5sum and they don't match, abandon ship
+      if(fileStat.md5 && fileStat.md5 !== md5){
+        callback(false);
+        return;
+      }
 
-		res.writeHead(200, {'Content-Type': 'application/json'});
+      fileStat.md5 = md5;
 
-		fileStats.forEach(function(tFileStat, index, thisArray){
-			uploadFile(tFileStat, files, function(fileStat){
-				if(fileStat){
-					console.log("FileStat: ");
-					console.log(fileStat);
-					//console.log(JSON.stringify(fileStat));
-					res.write(JSON.stringify(fileStat));
-				}
-			});
-		});
+      saveToFs(fileStat, oldPath, function(err){
+        if (err) {
+          fs.unlink(oldPath); // XXX ignoring possible unlink error
+          fileStat.err = "File did not save";
+        } else {
+          saveToDb(hash, fileStat);
+        }
+        callback(err, fileStat);
+      });
+    });
+  }
 
-		res.end();
-	});
-}
+  function handleUpload(req, res, next){
+    if(!req.form){
+      return next();
+    }
 
-server = connect.createServer(
-	form({keepExtensions: true}),
-	handleUpload,
-	staticProvider()
-);
+    req.form.complete(function(err, fields, files){
+      var fileStats;
 
-server.listen(8022);
+      fields.statsHeader = JSON.parse(fields.statsHeader);
+      fields.stats = JSON.parse(fields.stats);
 
-console.log("Server listening on port 8022");
+      fileStats = addKeysToFileStats(fields.statsHeader, fields.stats);
 
-//})();
+      res.writeHead(200, {'Content-Type': 'application/json'});
+
+      function handleFileStat(fileStat) {
+        // this callback is synchronous
+        fileStat.checksum(function (isEqual, qmd5) {
+          function finishReq(err) {
+            console.log("FileStat: ");
+            console.log(fileStat);
+            fileStat.err = err;
+            res.write(JSON.stringify(fileStat));
+          }
+
+          if(!equal){
+            return finishReq("Sum not equal");
+          }
+          importFile(fileStat, files[qmd5], finishReq);
+        });
+      }
+
+      fileStats.forEach(handleFileStat);
+      res.end();
+    });
+  }
+
+  server = connect.createServer(
+    form({keepExtensions: true}),
+    handleUpload,
+    staticProvider()
+  );
+
+  server.listen(8022);
+
+  console.log("Server listening on port 8022");
+}());
