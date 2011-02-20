@@ -138,10 +138,10 @@ var require;
     return fileStats;
   }
 
-  function importFile(fileStat, files, callback){
+  function importFile(fileStat, tmpFile, callback){
     var oldPath;
 
-    oldPath = files[hash].path;
+    oldPath = tmpFile.path;
     readFile(oldPath, function(err, md5){
       if (err) {
         fileStat.err = err;
@@ -162,7 +162,7 @@ var require;
           fs.unlink(oldPath); // XXX ignoring possible unlink error
           fileStat.err = "File did not save";
         } else {
-          saveToDb(hash, fileStat);
+          saveToDb(fileStat.qmd5, fileStat);
         }
         callback(err, fileStat);
       });
@@ -194,7 +194,7 @@ var require;
             res.write(JSON.stringify(fileStat));
           }
 
-          if(!equal){
+          if (!isEqual) {
             return finishReq("Sum not equal");
           }
           importFile(fileStat, files[qmd5], finishReq);
