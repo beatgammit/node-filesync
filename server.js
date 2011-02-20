@@ -85,12 +85,11 @@ function readFile(filePath, callback){
 	});
 }
 
-function saveFile(md5, fileStat, callback){
+function saveFile(md5, fileStat, filePath, callback){
 	var m, newPath;
 	// if we have an md5sum and they don't match, abandon ship
 	if(fileStat.md5 && fileStat.md5 !== md5){
 		// we don't care about the callback of unlink
-		fs.unlink(filePath);
 		callback(false);
 		return;
 	}
@@ -118,7 +117,7 @@ function saveFile(md5, fileStat, callback){
 				callback(err, fileStat);
 			});
 		}else{
-			moveFile(filePath, tJoin);
+			moveFile(filePath, fileStat.path);
 
 			callback(undefined, fileStat);
 		}
@@ -128,7 +127,7 @@ function saveFile(md5, fileStat, callback){
 function compileFileStats(statsHeader, stats){
 	var fileStats = [];
 	stats.forEach(function(item, index, statsArray){
-		tFileStat = new FileStat();
+		tFileStat = FileStat();
 
 		item.forEach(function(field, index, itemArray){
 			tFileStat[statsHeader[index]] = field;
@@ -139,7 +138,7 @@ function compileFileStats(statsHeader, stats){
 }
 
 function uploadFile(tFileStat, files, callback){
-	tFileStat.checkSum(function(equal, hash){
+	tFileStat.checksum(function(equal, hash){
 		var oldPath;
 		if(!equal){
 			tFileStat.err = "Sum not equal";
@@ -150,12 +149,13 @@ function uploadFile(tFileStat, files, callback){
 		oldPath = files[hash].path;
 		readFile(oldPath, function(err, md5){
 			if(!err){
-				saveFile(md5, this, function(err, fileStat){
-					if(success){
-						putKeyValue(hash, fileStat);
+				saveFile(md5, this, oldPath, function(err, fileStat){
+					if(err){
+						fileStat.unlink(oldPath);
+						fileStat.err = "File did not save";
 						callback(fileStat);
 					}else{
-						fileStat.err = "File did not save";
+						putKeyValue(hash, fileStat);
 						callback(fileStat);
 					}
 				});
@@ -183,10 +183,14 @@ function handleUpload(req, res, next){
 
 		res.writeHead(200, {'Content-Type': 'application/json'});
 
-		fileStats.forEach(function(tFileStat, index, thiSArray){
+		fileStats.forEach(function(tFileStat, index, thisArray){
 			uploadFile(tFileStat, files, function(fileStat){
-				console.log(JSON.stringify(tFileStat));
-				res.write(JSON.stringify(fileStat));
+				if(fileStat){
+					console.log("FileStat: ");
+					console.log(fileStat);
+					//console.log(JSON.stringify(fileStat));
+					res.write(JSON.stringify(fileStat));
+				}
 			});
 		});
 
