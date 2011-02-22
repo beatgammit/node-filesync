@@ -9,6 +9,10 @@
     user: 'coolaj86',
     password: 'cr4zym0nk3y'
   }, function (response) {
+    if (!response) {
+      console.log("END: The eagle never took off");
+      return;
+    }
     response.on('data', function (data) {
       console.log("DATA");
       console.log(data.toString());
