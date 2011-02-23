@@ -4,10 +4,14 @@
   // full scan - moves and deletes
   // vs
   // quick scan - creates, moves (and half-moves), and modifies
-  var uploadDb = require('uploadDb');
+  var fs = require('fs');
 
-  uploadDb.load(function () {
+  fs.readFile("./db/scan/post-fixtures-setup.json", function (err, data) {
+    var first = JSON.parse(data);
+    fs.readFile("./db/scan/post-fixtures-modify.json", function (err, data) {
+      var second = JSON.parse(data);
+      console.log(first);
+      console.log(second);
+    });
   });
-  uploadDb.load(function () {
-  });
-}();
+}());
