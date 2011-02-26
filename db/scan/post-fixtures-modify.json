@@ -94,7 +94,7 @@
     "path": "tests/filepush.js",
     "qmd5": "85a684273ed6f5778af2d1aed0f494f3"
   },
-  "c7cc68596d1f3d437aceee9d2fa2d2af": {
+  "fixme": {
     "dev": 234881026,
     "ino": 2520014,
     "mode": 33204,
@@ -108,9 +108,9 @@
     "atime": "2011-02-23T04:33:12.000Z",
     "mtime": "2011-02-23T04:32:47.000Z",
     "ctime": "2011-02-23T04:32:47.000Z",
-    "name": "moveme.bin",
+    "name": "gotmoved.bin",
     "type": "file",
-    "path": "tests/testdir/moveme.bin",
+    "path": "tests/testdir/gotmoved.bin",
     "qmd5": "c7cc68596d1f3d437aceee9d2fa2d2af"
   },
   "329a3c3a964f002669ec0e34d6f252f6": {
