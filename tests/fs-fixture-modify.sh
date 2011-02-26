@@ -48,6 +48,7 @@ function modify_base {
   create_files
   duplicate_files
   modify_file
+  move_file
   delete_file
 }
 
