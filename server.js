@@ -50,27 +50,13 @@ var require;
 		onFailure(new Error("Username and password don't pass"));
 	}
 
-//	function authenticateUser(req, res, next) {
-//		console.log("Pre-Auth");
-//		req.authenticate(['http'], function(error, authenticated) { 
-//			console.log("Auth");
-//			if (authenticated) {
-//				return next();
-//			}
-//			res.writeHead(403, {'Content-Type': 'text/html'});
-//			res.end("<html><h1>Bad Authentication</h1></html>\n");
-//			return;
-//		});
-//	}
-
 	function handleMeta(req, res, next){
 		var urlObj, query, dbaccess = require('./lib/dbaccess'), mimeType;
 
 		switch(req.params.field){
-			case "contentType":{
+			case "type":{
 				if(req.params.value && req.params.ext){
 					mimeType = req.params.value + "/" + req.params.ext;
-					console.log("Type: " + mimeType);
 					dbaccess.getByMimeType(mimeType, function(err, docArray){
 						console.log(JSON.stringify(docArray));
 						res.writeHead(200, {'Content-Type': 'application/json'});
@@ -92,7 +78,6 @@ var require;
 
 	function routing(app){
 		app.post("/", function(req, res, next){
-			console.log("Hi");
 			handleUpload(req, res, next);
 		});
 		app.post("/file", handleUpload);
@@ -102,9 +87,7 @@ var require;
 	}
 
 	server = connect.createServer(
-		//connect.basicAuth(validateUserPassword),
 		auth([ auth.Http({ validatePassword: validateUserPassword }) ]),
-		//authenticateUser,
 		form({keepExtensions: true}),
 		connect.router(routing),
 		staticProvider()
