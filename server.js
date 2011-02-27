@@ -7,6 +7,7 @@ var require;
 	"use strict";
 
 	require('noop');
+	require('long-stack-traces');
 
 	var connect = require('connect'),
         auth = require('connect-auth'),
@@ -14,6 +15,8 @@ var require;
 		staticProvider = require("./static"),
 		form = require('connect-form'),
 		fs = require('fs'),
+		url = require('url'),
+		qs = require('qs'),
 		util = require('util'),
 		handleUpload = require("./lib/import.js"),
 		server;
@@ -39,31 +42,55 @@ var require;
 		});
 	};
 
-  function validateUserPassword(username, password, onSuccess, onFailure) {
-    if (authdb[username] && authdb[username] === password) {
-      return onSuccess();
-    }
-    onFailure(new Error("Username and password don't pass"));
-  }
+	function validateUserPassword(username, password, onSuccess, onFailure) {
+		console.log("UName");
+		if (authdb[username] && authdb[username] === password) {
+			return onSuccess();
+		}
+		onFailure(new Error("Username and password don't pass"));
+	}
 
-  function authenticateUser(req, res, next) {
-    req.authenticate(['http'], function(error, authenticated) { 
-      if (authenticated) {
-        return next();
-      }
-      console.log(error);
-      res.writeHead(403, {'Content-Type': 'text/html'});
-      res.end("<html><h1>Bad Authentication</h1></html>\n");
-      return;
-    });
-  }
+	function handleMeta(req, res, next){
+		var urlObj, query, dbaccess = require('./lib/dbaccess'), mimeType;
+
+		switch(req.params.field){
+			case "type":{
+				if(req.params.value && req.params.ext){
+					mimeType = req.params.value + "/" + req.params.ext;
+					dbaccess.getByMimeType(mimeType, function(err, docArray){
+						console.log(JSON.stringify(docArray));
+						res.writeHead(200, {'Content-Type': 'application/json'});
+						res.end(JSON.stringify(docArray));
+					});
+				}else{
+					res.writeHead(200, {'Content-Type': 'application/json'});
+					res.end("{err: 'Not implemented, sorry'}");
+				}
+				break;
+			}
+			default:{
+				res.writeHead(200, {'Content-Type': 'application/json'});
+				res.end("{err: 'Not implemented, sorry'}");
+				break;
+			}
+		}
+	}
+
+	function routing(app){
+		app.post("/", function(req, res, next){
+			handleUpload(req, res, next);
+		});
+		app.post("/file", handleUpload);
+		// doesn't work yet
+		//app.get("/file", handleDownload);
+		app.get("/meta/:field/:value?/:ext", handleMeta);
+	}
 
 	server = connect.createServer(
-        auth([ auth.Http({ validatePassword: validateUserPassword }) ]),
-        authenticateUser,
-        form({keepExtensions: true}),
-        handleUpload,
-        staticProvider()
+		auth([ auth.Http({ validatePassword: validateUserPassword }) ]),
+		form({keepExtensions: true}),
+		connect.router(routing),
+		staticProvider()
 	);
 
 	server.listen(8022);
