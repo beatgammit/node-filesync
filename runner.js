@@ -7,6 +7,7 @@
   var filesyncDb = require('./lib/filesync-db'),
     scannerDb = require('./lib/scanner-sqlite3'),
     filescan = require("./lib/filescan"),
+    filepush = require("./lib/filepush"),
     max_packet_size = 1024 * 1024 * 20,
     batch,
     options = {
@@ -22,7 +23,7 @@
     var i,
       packet = 0,
       set,
-      stop,
+      stop = batch.length,
       file;
 
     for (i = 0; i < batch.length; i += 1) {
@@ -34,19 +35,25 @@
       }
     }
 
+    console.log('nextBatch-ing');
+    console.log(stop);
+
     set = batch.splice(0, stop);
+    console.log(set);
     if (!set.length) {
       return;
     }
     console.log('set: ');
-    console.log(set);
+    //console.log(set);
     uploadBatch(set);
   }
 
   function uploadBatch(set) {
+    console.log('uploadBatch-ing');
     function handleHttpResponse(err, response) {
       var chunks = [];
 
+      console.log('handleHttpResponse');
       if (err) {
         throw err;
       }
@@ -103,6 +110,7 @@
       });
     }
 
+    console.log('pre-filepush');
     filepush(options, set, handleHttpResponse);
   }
 
@@ -145,6 +153,7 @@
             if (err) {
               throw err;
             }
+            console.log("post-getQueue");
             if (!files.length) {
               return console.log("No files in queue for upload");
             }
