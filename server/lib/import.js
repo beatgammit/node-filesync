@@ -7,7 +7,7 @@
 		exec = require('child_process').exec,
 		mime = require('mime'),
 		filesyncdb = require('./dbaccess'),
-		FileStat = require('./filestat.js'),
+		FileStat = require('filestat.js'),
 		dbaccess = require('./dbaccess'),
 		hashAlgo = "md5",
 		regex = /(..)(..)(..)(..).*/,
@@ -148,10 +148,6 @@
 
 			bFirst = true;
 			function handleFileStat(next, fileStat) {
-				console.log("File:");
-				console.log(fileStat);
-				console.log();
-				console.log();
 				// this callback is synchronous
 				fileStat.checkMd5(function (qmd5Error, qmd5) {
 					function finishReq(err) {

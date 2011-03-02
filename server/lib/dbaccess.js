@@ -3,7 +3,7 @@
 
 	var mime = require('mime'),
 		crypto = require('crypto'),
-		cradle = require('cradle'),
+		cradle = require('../../node_modules/cradle'),
 		client = new cradle.Connection('http://www.beatgammit.com', 5984, {
 				auth: {username: "filesync", password: "Wh1t3Ch3dd3r"}
 			}),
@@ -21,7 +21,7 @@
 		filesyncdb.get(key, function(err, doc){
 			if(doc){
 				docData = doc;
-				doc['value'] = value;
+				doc['value'] = JSON.parse(JSON.stringify(value));
 			}
 
 			filesyncdb.save(key, docData);
@@ -30,8 +30,8 @@
 
 	function getByMimeType(mimeType, callback){
 		mimeType = mimeType.replace('/', '%2F');
-		console.log(mimeType);
 		filesyncdb.view('type/' + mimeType, function(error, response){
+			console.log(response);
 			var docArray = [];
 			if(error){
 				console.log("Epic error fail: " + JSON.stringify(error));
@@ -75,7 +75,7 @@
 				});
 
 				console.log(tDesign);
-				filesyncdb.save('_design/type', tDesign); 
+				filesyncdb.save('_design/type', tDesign.views); 
 			});
 		}
 	}

@@ -14,7 +14,6 @@ var require;
         auth = require('connect-auth'),
 		db = require('./lib/dbaccess'),
         authdb = require('./users'),
-		staticProvider = require("./static"),
 		form = require('connect-form'),
 		fs = require('fs'),
 		url = require('url'),
@@ -45,35 +44,37 @@ var require;
 	};
 
 	function validateUserPassword(username, password, onSuccess, onFailure) {
+		console.log("Validate");
 		if (authdb[username] && authdb[username] === password) {
-			return onSuccess();
+			if(onSuccess){
+				return onSuccess();
+			}else{
+				// using basicAuth
+				return true;
+			}
 		}
-		onFailure(new Error("Username and password don't pass"));
+
+		if(onFailure){
+			onFailure(new Error("Username and password don't pass"));
+		}
+		return false;
 	}
 
 	function handleMeta(req, res, next){
+		console.log("Hi");
 		var urlObj, query, dbaccess = require('./lib/dbaccess'), mimeType;
 
-		switch(req.params.field){
-			case "type":{
-				if(req.params.value && req.params.ext){
-					mimeType = req.params.value + "/" + req.params.ext;
-					dbaccess.getByMimeType(mimeType, function(err, docArray){
-						console.log(JSON.stringify(docArray));
-						res.writeHead(200, {'Content-Type': 'application/json'});
-						res.end(JSON.stringify(docArray));
-					});
-				}else{
-					res.writeHead(200, {'Content-Type': 'application/json'});
-					res.end("{err: 'Not implemented, sorry'}");
-				}
-				break;
-			}
-			default:{
+		if(req.params.field && req.params.value){
+			mimeType = req.params.field + "/" + req.params.value;
+					
+			dbaccess.getByMimeType(mimeType, function(err, docArray){
+				console.log(JSON.stringify(docArray));
 				res.writeHead(200, {'Content-Type': 'application/json'});
-				res.end("{err: 'Not implemented, sorry'}");
-				break;
-			}
+				res.end(JSON.stringify(docArray));
+			});
+		}else{
+			res.writeHead(200, {'Content-Type': 'application/json'});
+			res.end("{err: 'Not implemented, sorry'}");
 		}
 	}
 
@@ -142,17 +143,19 @@ var require;
 		app.post("/check", checkStatus);
 		// doesn't work yet
 		//app.get("/file", handleDownload);
-		app.get("/meta/:field/:value?/:ext", handleMeta);
+		app.get("/meta/:field/:value", handleMeta);
 		app.post("/register", handleRegister);
 		app.get("/register", handleRegister);
 	}
 
-	server = connect.createServer(
-		auth([ auth.Http({ validatePassword: validateUserPassword }) ]),
+	server = connect(
+		// the new connect change broke this
+		//auth([ auth.Http({ validatePassword: validateUserPassword }) ]),
+		connect.basicAuth(validateUserPassword),
 		form({keepExtensions: true}),
-		connect.bodyDecoder(),
+		connect.bodyParser(),
 		connect.router(routing),
-		staticProvider()
+		connect.static("./")
 	);
 
 	server.listen(8022);
