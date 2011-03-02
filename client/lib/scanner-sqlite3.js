@@ -62,6 +62,7 @@
       key: "qmd5", 
       include: ["uploaded", "md5"]
     });
+    //console.log(statement);
     db.exec(statement, cb);
   }
 

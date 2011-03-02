@@ -6,7 +6,8 @@
     path = require('path'),
     FileApi = require('file-api'),
     File = require('file-api').File,
-    FormData = require('file-api').FormData;
+    FormData = require('file-api').FormData,
+    crypto = require('crypto');
 
   function dbStat2FileApiStat(dbStat) {
     // Blob: size, type
@@ -17,14 +18,14 @@
     dbStat.name = dbStat.basename + (dbStat.ext ? '.' + dbStat.ext : '');
     dbStat.lastModifiedDate = new Date(dbStat.mtime);
     dbStat.path = path.join(dbStat.rpath.reverse(), dbStat.name);
-    console.log(dbStat);
+    //console.log(dbStat);
     return dbStat;
   }
 
   function create(options, stats, cb) {
     var formData = new FormData(),
-      chunked = false,
-      //chunked = true,
+      //chunked = false,
+      chunked = true,
       auth,
       client;
 
@@ -34,27 +35,33 @@
 
     client = http.createClient(options.port, options.host);
 
-    function encodeBody(stats) {
+    function encodeBody(rstats) {
       var qstats = [];
+
+      rstats.forEach(function (rstat, i) {
+        rstats[i] = dbStat2FileApiStat(rstat);
+      });
 
       formData.setNodeChunkedEncoding(chunked);
       formData.append('statsHeader', JSON.stringify(["path","mtime","size","qmd5"]));
 
-      stats.forEach(function (stat) {
-        var crypto = require('crypto'),
-          path = stat.path,
-          mtime = stat.mtime.valueOf(),
-          size = stat.size,
-          qmd5 = crypto.createHash("md5").update("" + mtime + size + path).digest("hex");
+      rstats.forEach(function (stat) {
+        var gstat = [
+          stat.path,
+          stat.mtime.valueOf(),
+          stat.size,
+          crypto.createHash("md5").update("" + stat.mtime.valueOf() + stat.size + stat.path).digest("hex")
+        ];
 
-        qstats.push([path, mtime, size, qmd5]);
+        console.log('gstat');
+        console.log(gstat);
+        qstats.push(gstat);
       });
       formData.append('stats', JSON.stringify(qstats));
 
       // TODO this would fail if nothing were present
       qstats.forEach(function (qstat, i) {
-        var stat = dbStat2FileApiStat(stats[i]);
-        formData.append(qstat[3], new File(stat));
+        formData.append(qstat[3], new File(rstats[i]));
       });
     }
 
@@ -78,6 +85,7 @@
 
       if (chunked) {
         request = client.request('POST', '/', headers);
+        console.log('############ made request');
         bodyStream.on('data', function (data) {
           request.write(data);
         });
@@ -88,6 +96,7 @@
         if (!chunked) {
           headers["Content-Length"] = size;
           request = client.request('POST', '/', headers);
+          console.log('############ made request (not chunked)');
         }
         request.on('error', function (err) {
           cb(err);

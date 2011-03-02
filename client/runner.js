@@ -6,13 +6,14 @@
 
   var filesyncDb = require('./lib/filesync-db'),
     scannerDb = require('./lib/scanner-sqlite3'),
-    filescan = require("./lib/filescan"),
-    filepush = require("./lib/filepush"),
+    filescan = require('./lib/filescan'),
+    indexOn = require('./lib/index-on'),
+    filepush = require('./lib/filepush'),
     max_packet_size = 1024 * 1024 * 20,
     batch,
     options = {
       start: './tests',
-      host: '192.168.1.101', 
+      host: '192.168.1.29', 
       //host: 'localhost', 
       port: 8022,
       user: 'coolaj86',
@@ -38,7 +39,8 @@
     console.log('nextBatch-ing');
     console.log(stop);
 
-    set = batch.splice(0, stop);
+    set = batch.splice(0, 10);//stop);
+    console.log('set: ');
     console.log(set);
     if (!set.length) {
       return;
@@ -85,11 +87,20 @@
 
         allStats = indexOn(set.slice(), 'qmd5');
 
+        console.log(allStats);
+        console.log(data);
+        
         data.forEach(function (item) {
           var orig = allStats[item.qmd5];
 
           if (!orig) {
             console.log(new Error("got back results for a file that wasn't sent"));
+            return;
+          }
+
+          if (item.err) {
+            console.log(err);
+            return;
           }
 
           allStats[item.qmd5] = undefined;
@@ -100,7 +111,7 @@
         });
 
         if (Object.keys(allStats).length) {
-          console.log(allStats);
+          //console.log(allStats);
           console.log(new Error("items received didn't all match items sent"));
         }
 

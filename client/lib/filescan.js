@@ -10,6 +10,7 @@
 
   var mime = require('mime'),
     fs = require('fs'),
+    qmd5 = require('qmd5'),
     path = require('path'),
     walk = require('walk'),
     crypto = require('crypto'),
@@ -53,10 +54,7 @@
     function createFile(pathname, stat) {
       var newstat = {};
 
-      newstat.qmd5 = crypto
-        .createHash("md5")
-        .update(stat.mtime.toString() + stat.size + path.join(pathname, stat.name))
-        .digest("hex");
+      newstat.path = path.join(pathname, stat.name);
 
       newstat.mode = stat.mode;
       newstat.uid = stat.uid;
@@ -69,6 +67,8 @@
       newstat.rpath = pathname.reverse();
       newstat.basename = path.basename(newstat.name, '.' + newstat.ext);
       newstat.type = mime.lookup(newstat.ext);
+
+      newstat.qmd5 = qmd5(newstat);
 
       return newstat;
     }
@@ -125,9 +125,7 @@
         fullscan = true;
       }
 
-      if ('/' === options.start[0]) {
-        options.start = path.resolve(options.start);
-      }
+      options.start = path.resolve(options.start);
 
       console.log(lastUpdate + ' ' + options.start);
 
