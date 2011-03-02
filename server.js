@@ -8,9 +8,11 @@ var require;
 
 	require('noop');
 	require('long-stack-traces');
+	require('futures/forEachAsync');
 
 	var connect = require('connect'),
         auth = require('connect-auth'),
+		db = require('./lib/dbaccess'),
         authdb = require('./users'),
 		staticProvider = require("./static"),
 		form = require('connect-form'),
@@ -43,7 +45,6 @@ var require;
 	};
 
 	function validateUserPassword(username, password, onSuccess, onFailure) {
-		console.log("UName");
 		if (authdb[username] && authdb[username] === password) {
 			return onSuccess();
 		}
@@ -76,19 +77,80 @@ var require;
 		}
 	}
 
+	function handleRegister(req, res){
+		console.log(req.url);
+		var qData;
+		if(req.method == "GET"){
+			qData = qs.parse(url.parse(req.url).query);
+			db.registerUser(qData.name, qData.pass, qData.data, function(cess){
+				res.writeHead(200, {'Content-Type': 'application/json'});
+				res.end(JSON.stringify(cess));
+			});
+		}else if(req.form){
+			req.form.complete(function(err, fields){
+				console.log();
+				console.log();
+				console.log();
+				console.log();
+				console.log(JSON.stringify(fields));
+				console.log();
+				console.log();
+				console.log();
+				console.log();
+
+				res.writeHead(200, {'Content-Type': 'application/json'});
+				if(err){
+					res.end(JSON.stringify(err));
+					return;
+				}
+
+				db.registerUser(fields.user, fields.pass, fields.data, function(success){
+					res.end(JSON.stringify(success));
+				});
+			});
+		}
+	}
+
+	function checkStatus(req, res, next){
+		var bFirst = true;
+
+		req.body = JSON.parse(req.body);
+
+		res.writeHead(200, {'Content-Type': 'application/json'});
+		res.write('[');
+		req.body.files.forEachAsync(function(next, item){
+			console.log(JSON.stringify(req.getAuthDetails()));
+			db.fileExists(item.filestat, item.filedata, req.getAuthDetails(), function(result){
+				if(!bFirst){
+					res.write(',');
+				}
+				bFirst = false;
+
+				res.write(JSON.stringify(result));;
+				next();
+			});
+		}).then(function(){
+			res.end(']');
+		});
+	}
+
 	function routing(app){
 		app.post("/", function(req, res, next){
 			handleUpload(req, res, next);
 		});
 		app.post("/file", handleUpload);
+		app.post("/check", checkStatus);
 		// doesn't work yet
 		//app.get("/file", handleDownload);
 		app.get("/meta/:field/:value?/:ext", handleMeta);
+		app.post("/register", handleRegister);
+		app.get("/register", handleRegister);
 	}
 
 	server = connect.createServer(
 		auth([ auth.Http({ validatePassword: validateUserPassword }) ]),
 		form({keepExtensions: true}),
+		connect.bodyDecoder(),
 		connect.router(routing),
 		staticProvider()
 	);
