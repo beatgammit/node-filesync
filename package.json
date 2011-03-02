@@ -1,0 +1,21 @@
+{
+  "name"          : "filesync",
+  "description"   : "multi-computer file sync server",
+  "url"           : "http://github.com/beatgammit/node-filesync/",
+  "keywords"      : ["util", "sync", "file"],
+  "author"        : "T. Jameson Little <beatgammit@gmail.com>",
+  "contributors"  : [
+                      "AJ ONeal <coolaj86@gmail.com>"
+                    ],
+  "dependencies"  : {
+                      "connect": ">=0.0.0",
+                      "connect-form": ">=0.0.0",
+                      "walk": ">=0.0.0",
+                      "mime": ">=0.0.0",
+                      "futures": ">=1.9.4"
+                    },
+  "version"       : "0.1.0",
+  "engines"       : {
+                      "node" : ">=0.2.0 <0.5.0"
+                    }
+}

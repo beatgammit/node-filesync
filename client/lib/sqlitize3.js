@@ -4,6 +4,10 @@
   require('noop');
   require('remedial');
 
+
+  function sqliteQuoteKeyword(str) {
+    return "`" + String(str) + "`";
+  }
   function sqliteEscape(str) {
     return str.replace("'","''");
   }
@@ -14,8 +18,10 @@
   function createSqliteColumn(column, cb) {
     // TODO constraints
     column.type = (column.type || "text").toUpperCase();
+    column.unique = (true === column.unique) ? "UNIQUE" : "";
     column.notnull = (true === column.notnull) ? "NOT NULL" : "";
-    cb(" {name} {type} {notnull}".supplant(column));
+    column.default = (column.default) ? "DEFAULT " + column.default : "";
+    cb(" {name} {type} {notnull} {unique} {default}".supplant(column));
   }
 
   // CREATE [UNIQUE] INDEX [IF NOT EXISTS] [DBNAME.] <index-name> ON 
@@ -43,7 +49,7 @@
       tableColumns = table.columns,
       key = table.key;
 
-    sql += " (\n\t"
+    sql += " (\n  "
 
     key = key || {};
     key.name = (key.name || 'id').toLowerCase();
@@ -59,7 +65,7 @@
       });
     });
     if (columns.length) {
-      sql += ',\n\t' + columns.join(',\n\t') + '\n);\n';
+      sql += ',\n  ' + columns.join(',\n  ') + '\n);\n';
     }
 
     (table.indexes||[]).forEach(function (index) {
@@ -70,20 +76,14 @@
   }
 
   // TODO associate with table
-  function insert_value(tablename, obj) {
-    directive.tables.forEach(function (table) {
-      if (tablename === table.name) {
-        columns = table.columns;
-      }
-    });
-    columns.forEach(function (column) {
-      values.push(obj[column.name]);
-    });
+  function insert_one(tablename, obj, ins_opts) {
+    insert_many(tablename, [obj], ins_opts);
   }
 
-  function insert_values(table, objects) {
+  function insert_many(table, objects, ins_opts) {
     var sql = "BEGIN TRANSACTION;",
-      statements = [];
+      statements = [],
+      resolve = ('ignore' === (ins_opts||{}).resolve) ? 'OR IGNORE' : '';
 
     objects.forEach(function (obj) {
       var values = ['null'],
@@ -100,18 +100,76 @@
         values.push(value);
       });
 
-      ins = "INSERT INTO {table} VALUES ( {values} );".supplant({ table: table.name, values: values.join(', ')})
+      ins = "INSERT {resolve} INTO {table} VALUES ( {values} );".supplant({
+        resolve: resolve,
+        table: table.name,
+        values: values.join(', ')
+      });
       statements.push(ins);
     });
 
-    sql += "\n\t" + statements.join('\n\t') + "\nCOMMIT;";
+    sql += "\n  " + statements.join('\n  ') + "\nCOMMIT;";
+    return sql;
+  }
+
+  function update_many(table, objects, up_opts) {
+    var sql = "BEGIN TRANSACTION;",
+      statements = [],
+      includes = {},
+      key, 
+      resolve = ('ignore' === (up_opts||{}).resolve) ? 'OR IGNORE' : '';
+
+    up_opts = up_opts || {};
+    key = up_opts.key || 'id';
+
+    (up_opts.include||[]).forEach(function (_key) {
+      includes[_key] = true;
+    });
+
+    objects.forEach(function (obj) {
+      var values = [],
+        ins;
+
+      table.columns.forEach(function (column) {
+        var name = sqliteQuoteKeyword(column.name),
+          value = obj[column.name]; // XXX cases must match
+
+        if (!includes[column.name]) {
+          return;
+        }
+
+        if ('undefined' === typeof value) {
+          return;
+        }
+        if ('null' === typeof value) {
+          value = 'null';
+        } else {
+          value = sqliteQuoteValue(String(value));
+        }
+
+        values.push(name + " = " + value);
+      });
+
+      ins = "UPDATE {resolve} {table} SET {value_pairs} \n  WHERE {key} = {value};\n"
+      .supplant({
+        resolve: resolve,
+        table: table.name,
+        value_pairs: '\n    ' + values.join(',\n    '),
+        key: sqliteQuoteKeyword(key),
+        value: sqliteQuoteValue(obj[key])
+      });
+      statements.push(ins);
+    });
+
+    sql += "\n  " + statements.join('\n ') + "\nCOMMIT;";
     return sql;
   }
 
   module.exports = {
     table: createSqliteTable,
-    insert: insert_value,
-    insert_many: insert_values
+    insert_one: insert_one,
+    insert_many: insert_many,
+    update_many: update_many
   };
 
 }());

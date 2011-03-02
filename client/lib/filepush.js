@@ -3,9 +3,23 @@
 
   var http = require('http'),
     fs = require('fs'),
+    path = require('path'),
     FileApi = require('file-api'),
     File = require('file-api').File,
     FormData = require('file-api').FormData;
+
+  function dbStat2FileApiStat(dbStat) {
+    // Blob: size, type
+    // File: name, lastModifiedDate
+    // node-file-api: path 
+    dbStat.size = dbStat.size;
+    dbStat.type = dbStat.type;
+    dbStat.name = dbStat.basename + (dbStat.ext ? '.' + dbStat.ext : '');
+    dbStat.lastModifiedDate = new Date(dbStat.mtime);
+    dbStat.path = path.join(dbStat.rpath.reverse(), dbStat.name);
+    console.log(dbStat);
+    return dbStat;
+  }
 
   function create(options, stats, cb) {
     var formData = new FormData(),
@@ -33,14 +47,14 @@
           size = stat.size,
           qmd5 = crypto.createHash("md5").update("" + mtime + size + path).digest("hex");
 
-        //console.log(qmd5, "" + mtime, size, path);
         qstats.push([path, mtime, size, qmd5]);
       });
       formData.append('stats', JSON.stringify(qstats));
 
       // TODO this would fail if nothing were present
       qstats.forEach(function (qstat, i) {
-        formData.append(qstat[3], new File(stats[i]));
+        var stat = dbStat2FileApiStat(stats[i]);
+        formData.append(qstat[3], new File(stat));
       });
     }
 
@@ -75,8 +89,11 @@
           headers["Content-Length"] = size;
           request = client.request('POST', '/', headers);
         }
+        request.on('error', function (err) {
+          cb(err);
+        });
         request.on('response', function (response) {
-          cb(response);
+          cb(null, response);
         });
       });
 
