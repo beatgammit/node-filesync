@@ -8,7 +8,7 @@
 				auth: {username: "filesync", password: "Wh1t3Ch3dd3r"}
 			}),
 		filesyncdb = client.database('filesync'),
-		viewPrototype = function(doc){if(doc.value.type === '{0}'){emit(doc.mtime, doc);}}.toString(),
+		viewPrototype = function(doc){if(doc.type === '{0}'){emit(doc.mtime, doc);}}.toString(),
 		viewRegex = /\{0\}/;
 
 	function saveToDb(fileStat, username){
@@ -22,14 +22,14 @@
 				tFileDoc = doc;
 			}
 
-			if(tFileDoc.indexOf(username) < 0){
-				tFileDoc.push(username);
+			if(tFileDoc.owners.indexOf(username) < 0){
+				tFileDoc.owners.push(username);
 			}
 
 			filesyncdb.save(tFileDoc.md5, tFileDoc);
 		});
 
-		userDb = client.db(username);
+		userDb = client.database(username);
 		userDb.get(fileStat.qmd5, function(err, doc){
 			if(err){
 				// remove the functions from fileStat
@@ -38,9 +38,13 @@
 		});
 	}
 
-	function getByMimeType(mimeType, callback){
+	function getByMimeType(username, mimeType, callback){
+		console.log("User: " + username);
+		console.log("Mime: " + mimeType);
+		var userDb = client.database(username);
+
 		mimeType = mimeType.replace('/', '%2F');
-		filesyncdb.view('type/' + mimeType, function(error, response){
+		userDb.view('type/' + mimeType, function(error, response){
 			console.log(response);
 			var docArray = [];
 			if(error){
@@ -48,8 +52,6 @@
 				callback(error);
 				return;
 			}
-
-			console.log(JSON.stringify(response));
 
 			response['rows'].forEach(function(tDoc){
 				console.log(JSON.stringify(tDoc.value));
@@ -60,11 +62,12 @@
 		});
 	}
 
-	function createViews(data){
-		console.log("Create Views");
-		console.log(JSON.stringify(data));
+	function createViews(username, data){
+		var userDb;
+		console.log("Create Views: " + username);
 		if(data && data.length){
-			filesyncdb.get('_design/type', function(error, doc){
+			userDb = client.database(username);
+			userDb.get('_design/type', function(error, doc){
 				var tDesign = {};
 				if(!error){
 					tDesign = doc;
@@ -84,15 +87,14 @@
 					}
 				});
 
-				console.log(tDesign);
-				filesyncdb.save('_design/type', tDesign.views); 
+				userDb.save('_design/type', tDesign.views); 
 			});
 		}
 	}
 
 	function registerUser(name, pass, userData, callback){
 		var userDB;
-		userDB = client.db('_users');
+		userDB = client.database('_users');
 
 		userDB.get('org.couchdb.user:' + name, function(err, doc){
 			var userDoc, newDb;
@@ -109,10 +111,10 @@
 			userDoc.salt = crypto.createHash('sha1').update(new Date()).digest('hex');
 			userDoc.password_sha = crypto.createHash('sha1').update(pass + userDoc.salt).digest('hex');
 
-			userDB.saveDoc('org.couchdb.user:' + name, userDoc);
+			userDB.save('org.couchdb.user:' + name, userDoc);
 
 			// create a new db for this user
-			newDb = client.db(name);
+			newDb = client.database(name);
 			newDb.create();
 
 			callback();
@@ -120,13 +122,15 @@
 	}
 
 	function fileExists(filestat, filedata, username, callback){
-		filesyncdb.view('tmd5/' + 'tmd5', {startKey: filestat.tmd5, limit: 1},
+		filesyncdb.view('basic/' + 'tmd5', {startKey: filestat.tmd5, limit: 1},
 				function(err, response){
 			console.log("Filestat:");
 			console.log(filestat);
 			var tDb;
 			if(err || response.total_rows == 0){
-				callback({exists: false, err: err});
+				filestat.exists = false;
+				filestat.err = err;
+				callback(filestat);
 				return;
 			}
 
@@ -134,11 +138,16 @@
 			tDb.get(filedata.qmd5, function(error, doc){
 				if(err){
 					tDb.save(tDb._id, filedata);
-					callback({exists: true, err: err});
+
+					filestat.exists = true;
+					filestat.err = err;
+
+					callback(filestat);
 					return;
 				}
 
-				callback({exists: true});
+				filestat.exists = true;
+				callback(filestat);
 				return;
 			});
 		});

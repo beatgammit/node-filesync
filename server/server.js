@@ -66,7 +66,7 @@ var require;
 		if(req.params.field && req.params.value){
 			mimeType = req.params.field + "/" + req.params.value;
 					
-			dbaccess.getByMimeType(mimeType, function(err, docArray){
+			dbaccess.getByMimeType(req.remoteUser, mimeType, function(err, docArray){
 				console.log(JSON.stringify(docArray));
 				res.writeHead(200, {'Content-Type': 'application/json'});
 				res.end(JSON.stringify(docArray));
@@ -78,10 +78,10 @@ var require;
 	}
 
 	function handleRegister(req, res){
-		console.log(req.url);
 		var qData;
 		if(req.method == "GET"){
 			qData = qs.parse(url.parse(req.url).query);
+			console.log(qData);
 			db.registerUser(qData.name, qData.pass, qData.data, function(cess){
 				res.writeHead(200, {'Content-Type': 'application/json'});
 				res.end(JSON.stringify(cess));

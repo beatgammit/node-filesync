@@ -139,7 +139,7 @@
 			fields.stats = JSON.parse(fields.stats);
 
 			fileStats = addKeysToFileStats(fields.statsHeader, fields.stats);
-			dbaccess.createViews(fileStats);
+			dbaccess.createViews(req.remoteUser, fileStats);
 
 			res.writeHead(200, {'Content-Type': 'application/json'});
 			
@@ -167,7 +167,7 @@
 					if (qmd5Error) {
 						return finishReq(qmd5Error);
 					}
-					importFile(fileStat, files[qmd5], finishReq);
+					importFile(fileStat, files[qmd5], req.remoteUser, finishReq);
 				});
 			}
 

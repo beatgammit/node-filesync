@@ -42,6 +42,24 @@ The server communicates changes through open websockets with clients and serves 
 	* Responds to watched file data requests (all files watched)
 
 
+Supported commands:
+
+* /register- Register a user using either POST or GET request
+	* Formatted url query or JSON
+	* Must have 'user' and 'pass' field w/ optional data field
+* /file- Upload one or more files using formidable on a POST request
+	* 'fields' must have 2 properties, 'statsHeader' and 'stats'
+	* 'statsHeader' has all of the fields in stats in the same order
+	* 'stats' has all of the data for each FileStat object
+* /check- Check to see if a file or files are already uploaded
+	* POST request only
+	* Must be formatted JSON array of one or more FileStat objects (must have tmd5)
+	* Returns an array of FileStat objects with a new 'exists' property and possibly an 'err' property
+* /meta- Search for Files of a certain type
+	* format- /meta/mime/type where mime/type is any mimetype in the database
+	* mimetype group search will be supported in the future
+
+
 State of the project:
 =====================
 
@@ -54,6 +72,8 @@ Finished:
 * Listening to filesystem events given a parent directory usind inotify
 * Hashing on server and client
 * Directory structure on server
+* Server database backend to track uploaded files
+* Client database to track file synchronization with server
 
 To Do:
 ------
@@ -61,9 +81,8 @@ To Do:
 * File downloads
 * Websocket connection between client and server
 * Priority queue on client and basic server support for priority
-* Server database backend to track uploaded files
-* Client database to track file synchronization with server
 * Settings manager to add or remove directories to synchronize
+* Expand searching for documents
 
 Ideas for expansion:
 --------------------
