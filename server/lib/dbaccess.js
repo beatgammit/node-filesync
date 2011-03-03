@@ -39,13 +39,10 @@
 	}
 
 	function getByMimeType(username, mimeType, callback){
-		console.log("User: " + username);
-		console.log("Mime: " + mimeType);
 		var userDb = client.database(username);
 
 		mimeType = mimeType.replace('/', '%2F');
 		userDb.view('type/' + mimeType, function(error, response){
-			console.log(response);
 			var docArray = [];
 			if(error){
 				console.log("Epic error fail: " + JSON.stringify(error));
@@ -54,7 +51,6 @@
 			}
 
 			response['rows'].forEach(function(tDoc){
-				console.log(JSON.stringify(tDoc.value));
 				docArray.push(tDoc.value);
 			});
 
@@ -64,7 +60,6 @@
 
 	function createViews(username, data){
 		var userDb;
-		console.log("Create Views: " + username);
 		if(data && data.length){
 			userDb = client.database(username);
 			userDb.get('_design/type', function(error, doc){
@@ -124,8 +119,6 @@
 	function fileExists(filestat, filedata, username, callback){
 		filesyncdb.view('basic/' + 'tmd5', {startKey: filestat.tmd5, limit: 1},
 				function(err, response){
-			console.log("Filestat:");
-			console.log(filestat);
 			var tDb;
 			if(err || response.total_rows == 0){
 				filestat.exists = false;

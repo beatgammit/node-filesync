@@ -30,7 +30,6 @@ var require;
 			}
 
 			// backup plan
-			//console.log("Move Error: " + err);
 			var readStream = fs.createReadStream(oldPath),
 				writeStream = fs.createWriteStream(newPath);
 
@@ -44,7 +43,6 @@ var require;
 	};
 
 	function validateUserPassword(username, password, onSuccess, onFailure) {
-		console.log("Validate");
 		if (authdb[username] && authdb[username] === password) {
 			if(onSuccess){
 				return onSuccess();
@@ -67,7 +65,6 @@ var require;
 			mimeType = req.params.field + "/" + req.params.value;
 					
 			dbaccess.getByMimeType(req.remoteUser, mimeType, function(err, docArray){
-				console.log(JSON.stringify(docArray));
 				res.writeHead(200, {'Content-Type': 'application/json'});
 				res.end(JSON.stringify(docArray));
 			});
@@ -81,7 +78,6 @@ var require;
 		var qData;
 		if(req.method == "GET"){
 			qData = qs.parse(url.parse(req.url).query);
-			console.log(qData);
 			db.registerUser(qData.name, qData.pass, qData.data, function(cess){
 				res.writeHead(200, {'Content-Type': 'application/json'});
 				res.end(JSON.stringify(cess));
