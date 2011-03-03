@@ -34,7 +34,8 @@
           },
           {
             name: "mtime",
-            type: "integer",
+            type: "varchar",
+            //type: "integer",
             notnull: true
           },
           {
@@ -67,7 +68,8 @@
           },
           {
             name: "updated_on",
-            type: "integer"
+            type: "varchar",
+            //type: "integer"
           },
           {
             name: "deleted",
