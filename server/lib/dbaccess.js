@@ -86,36 +86,41 @@
 
 		userDB.get('org.couchdb.user:' + name, function(err, doc){
 			var userDoc, newDb;
-			if(!doc){
-				userDoc = {};
-				userDoc.name = name;
-				userDoc.type = "user";
-				userDoc.roles = [];
-				userDoc.data = userData;
-				userDoc.salt = crypto.createHash('sha1').update(new Date()).digest('hex');
-				userDoc.password_sha = crypto.createHash('sha1').update(pass + userDoc.salt).digest('hex');
-
-				userDB.saveDoc('org.couchdb.user:' + name, userDoc);
-
-				// create a new db for this user
-				newDb = client.db(name);
-				newDb.create();
+			if(doc){
+				callback("User exists");
+				return;
 			}
 
-			callback(err ? "success" : doc);
+			userDoc = {};
+			userDoc.name = name;
+			userDoc.type = "user";
+			userDoc.roles = [];
+			userDoc.data = userData;
+			userDoc.salt = crypto.createHash('sha1').update(new Date()).digest('hex');
+			userDoc.password_sha = crypto.createHash('sha1').update(pass + userDoc.salt).digest('hex');
+
+			userDB.saveDoc('org.couchdb.user:' + name, userDoc);
+
+			// create a new db for this user
+			newDb = client.db(name);
+			newDb.create();
+
+			callback();
 		});
 	}
 
 	function fileExists(filestat, filedata, username, callback){
-		var query = {startKey: filestat.tmd5, limit: 1};
-		filesyncdb.view('basic/' + 'tmd5', function(err, response){
+		filesyncdb.view('tmd5/' + 'tmd5', {startKey: filestat.tmd5, limit: 1},
+				function(err, response){
+			console.log("Filestat:");
+			console.log(filestat);
 			var tDb;
 			if(err || response.total_rows == 0){
 				callback({exists: false, err: err});
 				return;
 			}
 
-			tDb = client.db(username);
+			tDb = client.database(username);
 			tDb.get(filedata.qmd5, function(error, doc){
 				if(err){
 					tDb.save(tDb._id, filedata);
@@ -132,4 +137,5 @@
 	module.exports.getByMimeType = getByMimeType;
 	module.exports.createViews = createViews;
 	module.exports.registerUser = registerUser;
+	module.exports.fileExists = fileExists;
 })();

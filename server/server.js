@@ -61,7 +61,6 @@ var require;
 	}
 
 	function handleMeta(req, res, next){
-		console.log("Hi");
 		var urlObj, query, dbaccess = require('./lib/dbaccess'), mimeType;
 
 		if(req.params.field && req.params.value){
@@ -87,27 +86,14 @@ var require;
 				res.writeHead(200, {'Content-Type': 'application/json'});
 				res.end(JSON.stringify(cess));
 			});
-		}else if(req.form){
-			req.form.complete(function(err, fields){
-				console.log();
-				console.log();
-				console.log();
-				console.log();
-				console.log(JSON.stringify(fields));
-				console.log();
-				console.log();
-				console.log();
-				console.log();
-
+		}else{
+			db.registerUser(req.body.user, fields.pass, fields.data, function(err){
 				res.writeHead(200, {'Content-Type': 'application/json'});
 				if(err){
-					res.end(JSON.stringify(err));
-					return;
+					res.end(JSON.stringify({error: err}));
+				}else{
+					res.end(JSON.stringify({success: true}));
 				}
-
-				db.registerUser(fields.user, fields.pass, fields.data, function(success){
-					res.end(JSON.stringify(success));
-				});
 			});
 		}
 	}
@@ -115,13 +101,14 @@ var require;
 	function checkStatus(req, res, next){
 		var bFirst = true;
 
-		req.body = JSON.parse(req.body);
+		console.log(req.body);
+		//req.body = JSON.parse(req.body);
 
 		res.writeHead(200, {'Content-Type': 'application/json'});
 		res.write('[');
 		req.body.files.forEachAsync(function(next, item){
-			console.log(JSON.stringify(req.getAuthDetails()));
-			db.fileExists(item.filestat, item.filedata, req.getAuthDetails(), function(result){
+			//console.log(JSON.stringify(req.getAuthDetails()));
+			db.fileExists(item.filestat, item.filedata, /*req.getAuthDetails()*/"beatgammit", function(result){
 				if(!bFirst){
 					res.write(',');
 				}
