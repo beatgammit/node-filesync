@@ -3,7 +3,7 @@
 
 	var mime = require('mime'),
 		crypto = require('crypto'),
-		cradle = require('../../node_modules/cradle'),
+		cradle = require('cradle'),
 		client = new cradle.Connection('http://www.beatgammit.com', 5984, {
 				auth: {username: "filesync", password: "Wh1t3Ch3dd3r"}
 			}),
@@ -11,20 +11,30 @@
 		viewPrototype = function(doc){if(doc.value.type === '{0}'){emit(doc.mtime, doc);}}.toString(),
 		viewRegex = /\{0\}/;
 
-	function saveToDb(key, value){
-		var docData = {
-			'key': key,
-			'value': value
-		};
+	function saveToDb(fileStat, username){
+		var userDb;
 
-		console.log(JSON.stringify(docData));
-		filesyncdb.get(key, function(err, doc){
-			if(doc){
-				docData = doc;
-				doc['value'] = JSON.parse(JSON.stringify(value));
+		filesyncdb.get(fileStat.md5, function(err, doc){
+			var tFileDoc = {};
+			if(err){
+				tFileDoc = {md5: fileStat.md5, tmd5: fileStat.tmd5, owners: []};
+			}else{
+				tFileDoc = doc;
 			}
 
-			filesyncdb.save(key, docData);
+			if(tFileDoc.indexOf(username) < 0){
+				tFileDoc.push(username);
+			}
+
+			filesyncdb.save(tFileDoc.md5, tFileDoc);
+		});
+
+		userDb = client.db(username);
+		userDb.get(fileStat.qmd5, function(err, doc){
+			if(err){
+				// remove the functions from fileStat
+				userDb.save(fileStat.qmd5, JSON.parse(JSON.stringify(fileStat)));
+			}
 		});
 	}
 
@@ -129,6 +139,7 @@
 				}
 
 				callback({exists: true});
+				return;
 			});
 		});
 	}

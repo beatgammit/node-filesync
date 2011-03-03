@@ -101,14 +101,10 @@ var require;
 	function checkStatus(req, res, next){
 		var bFirst = true;
 
-		console.log(req.body);
-		//req.body = JSON.parse(req.body);
-
 		res.writeHead(200, {'Content-Type': 'application/json'});
 		res.write('[');
 		req.body.files.forEachAsync(function(next, item){
-			//console.log(JSON.stringify(req.getAuthDetails()));
-			db.fileExists(item.filestat, item.filedata, /*req.getAuthDetails()*/"beatgammit", function(result){
+			db.fileExists(item.filestat, item.filedata, req.remoteUser, function(result){
 				if(!bFirst){
 					res.write(',');
 				}

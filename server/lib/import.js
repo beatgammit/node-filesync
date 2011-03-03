@@ -6,7 +6,6 @@
 		path = require('path'),
 		exec = require('child_process').exec,
 		mime = require('mime'),
-		filesyncdb = require('./dbaccess'),
 		FileStat = require('filestat.js'),
 		dbaccess = require('./dbaccess'),
 		hashAlgo = "md5",
@@ -35,33 +34,34 @@
 		});
 	}
 
-	function saveToFs(fileStat, filePath, callback){
+	function saveToFs(md5, filePath, callback){
 		var m, newPath;
 
-		m = fileStat.md5.match(regex);
+		m = md5.match(regex);
 		newPath = path.join(doc_root, m[1], m[2], m[3], m[4]);
 
 		path.exists(newPath, function(exists){
-			fileStat.origPath = fileStat.path;
-			fileStat.path = path.join(newPath, m[0]);
+			newPath = path.join(newPath, m[0]);
 
 			if(exists){
-				fs.move(filePath, fileStat.path, function (err) {
-					callback(err, fileStat);
+				fs.move(filePath, newPath, function (err) {
+					callback(err, newPath);
 				});
 				return;
 			}
 
 			exec('mkdir -p ' + newPath, function(err, stdout, stderr){
+				var tError;
 				if(err || stderr) {
 					console.log("Err: " + (err ? err : "none"));
 					console.log("stderr: " + (stderr ? stderr : "none"));
-					return callback(err, fileStat, stderr);
+					tError = {error: err, stderr: stderr, stdout: stdout};
+					return callback(tError, newPath);
 				}
 
 				console.log("stdout: " + (stdout ? stdout : "none"));
-				fs.move(filePath, fileStat.path, function (err) {
-					callback(err, fileStat, stderr);
+				fs.move(filePath, newPath, function (moveErr) {
+					callback(moveErr, newPath);
 				});
 			});
 		});
@@ -88,7 +88,7 @@
 		return fileStats;
 	}
 
-	function importFile(fileStat, tmpFile, callback){
+	function importFile(fileStat, tmpFile, username, callback){
 		var oldPath;
 
 		oldPath = tmpFile.path;
@@ -101,24 +101,24 @@
 
 			// if we have an md5sum and they don't match, abandon ship
 			if(fileStat.md5 && fileStat.md5 !== md5){
-				callback(false);
+				callback("MD5 sums don't match");
 				return;
 			}
 
 			fileStat.md5 = md5;
 
-			console.log("TMD5");
 			fileStat.genTmd5(function(error, tmd5){
 				if(!error){
 					fileStat.tmd5 = tmd5;
 			
-					saveToFs(fileStat, oldPath, function(fserr){
+					saveToFs(fileStat.md5, oldPath, function(fserr){
+						var fileDoc;
 						if (fserr) {
 							// ignoring possible unlink error
 							fs.unlink(oldPath);
 							fileStat.err = "File did not save";
 						} else {
-							filesyncdb.put(fileStat.md5, fileStat);
+							dbaccess.put(fileStat, username);
 						}
 						callback(fserr, fileStat);
 					});
