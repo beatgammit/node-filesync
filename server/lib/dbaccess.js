@@ -58,6 +58,28 @@
 		});
 	}
 
+	function getMimeCategories(username, mime, callback){
+		var userDb = client.database(username);
+		userDb.get('_design/type', function(error, doc){
+			var mimeRegex = new RegExp(mime + '\/.'),
+				returnArr = [];
+			if(error){
+				callback(error);
+			}
+
+			console.log("RegExp: ");
+			console.log(mimeRegex);
+			for(var prop in doc.views){
+				console.log(prop);
+				if(prop.match(mimeRegex)){
+					returnArr.push(prop);
+				}
+			}
+
+			callback(null, returnArr);
+		});
+	}
+
 	function createViews(username, data){
 		var userDb;
 		if(data && data.length){
@@ -148,6 +170,7 @@
 
 	module.exports.put = saveToDb;
 	module.exports.getByMimeType = getByMimeType;
+	module.exports.getMimeCategories = getMimeCategories;
 	module.exports.createViews = createViews;
 	module.exports.registerUser = registerUser;
 	module.exports.fileExists = fileExists;

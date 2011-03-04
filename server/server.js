@@ -7,7 +7,7 @@ var require;
 	"use strict";
 
 	require('noop');
-	require('long-stack-traces');
+	//require('long-stack-traces');
 	require('futures/forEachAsync');
 
 	var connect = require('connect'),
@@ -59,18 +59,62 @@ var require;
 	}
 
 	function handleMeta(req, res, next){
-		var urlObj, query, dbaccess = require('./lib/dbaccess'), mimeType;
+		var dbaccess, mimeType,
+			user = req.remoteUser,
+			category = req.params.field,
+			type = req.params.value;
 
-		if(req.params.field && req.params.value){
-			mimeType = req.params.field + "/" + req.params.value;
-					
-			dbaccess.getByMimeType(req.remoteUser, mimeType, function(err, docArray){
+		if(!req.params.field){
+			return next();
+		}
+		
+		dbaccess = require('./lib/dbaccess')
+
+		// if they have supplied the full mimetype
+		if(req.params.value){
+			mimeType = categorf + "/" + type;
+
+			dbaccess.getByMimeType(user, mimeType, function(error, result){
 				res.writeHead(200, {'Content-Type': 'application/json'});
-				res.end(JSON.stringify(docArray));
+				if(error){
+					res.end(JSON.stringify(error));
+				}else{
+					res.end(JSON.stringify(result));
+				}
 			});
 		}else{
-			res.writeHead(200, {'Content-Type': 'application/json'});
-			res.end("{err: 'Not implemented, sorry'}");
+			// they want a category
+			dbaccess.getMimeCategories(user, category, function(error, result){
+				var bFirst = true;
+
+				res.writeHead(200, {'Content-Type': 'application/json'});
+
+				if(error){
+					res.end(JSON.stringify(error));
+					return;
+				}
+				console.log(result);
+
+				res.write('[');
+				result.forEachAsync(function(next, item){
+					console.log(item);
+					dbaccess.getByMimeType(user, item, function(error, result){
+
+						result.forEach(function(tDoc){
+							if(!bFirst){
+								res.write(',');
+							}
+							bFirst = false;
+
+							res.write(JSON.stringify(tDoc));
+						});
+
+						next();
+					});
+				}).then(function(){
+					res.end(']');
+				});
+			});
 		}
 	}
 
@@ -122,7 +166,7 @@ var require;
 		app.post("/check", checkStatus);
 		// doesn't work yet
 		//app.get("/file", handleDownload);
-		app.get("/meta/:field/:value", handleMeta);
+		app.get("/meta/:field/:value?", handleMeta);
 		app.post("/register", handleRegister);
 		app.get("/register", handleRegister);
 	}
