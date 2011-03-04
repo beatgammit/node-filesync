@@ -72,7 +72,7 @@ var require;
 
 		// if they have supplied the full mimetype
 		if(req.params.value){
-			mimeType = categorf + "/" + type;
+			mimeType = category + "/" + type;
 
 			dbaccess.getByMimeType(user, mimeType, function(error, result){
 				res.writeHead(200, {'Content-Type': 'application/json'});
