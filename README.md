@@ -57,7 +57,7 @@ Supported commands:
 	* Returns an array of FileStat objects with a new 'exists' property and possibly an 'err' property
 * /meta- Search for Files of a certain type
 	* format- /meta/mime/type where mime/type is any mimetype in the database
-	* mimetype group search will be supported in the future
+	* The type can be left out if you want all documents of a group.  This may be a little slow because a separate db query is made for each group
 
 
 State of the project:
