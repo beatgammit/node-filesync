@@ -5,7 +5,7 @@ Node-filesync is a file synchronization system utilizing NodeJS in both the clie
 
 
 Client
-======
+------
 
 The client communicates with the server through a websocket and pulls updates from the server when necessary. The various components are:
 
@@ -25,7 +25,7 @@ The client communicates with the server through a websocket and pulls updates fr
 
 
 Server
-======
+------
 
 The server communicates changes through open websockets with clients and serves file upload and download requests. The particur components are as follows:
 
@@ -42,56 +42,15 @@ The server communicates changes through open websockets with clients and serves 
 	* Responds to watched file data requests (all files watched)
 
 
-Supported commands:
-
-* /register- Register a user using either POST or GET request
-	* Formatted url query or JSON
-	* Must have 'user' and 'pass' field w/ optional data field
-* /file- Upload one or more files using formidable on a POST request
-	* 'fields' must have 2 properties, 'statsHeader' and 'stats'
-	* 'statsHeader' has all of the fields in stats in the same order
-	* 'stats' has all of the data for each FileStat object
-* /check- Check to see if a file or files are already uploaded
-	* POST request only
-	* Must be formatted JSON array of one or more FileStat objects (must have tmd5)
-	* Returns an array of FileStat objects with a new 'exists' property and possibly an 'err' property
-* /meta- Search for Files of a certain type
-	* format- /meta/mime/type where mime/type is any mimetype in the database
-	* The type can be left out if you want all documents of a group.  This may be a little slow because a separate db query is made for each group
-
-
 State of the project:
 =====================
 
-This is a work in progress. This section should give a basic notion of what should work and what has not been implemented yet.
+This is a work in progress and in pre-alpha stage.  These features are implemented and seem to work:
 
-Finished:
----------
-
-* Basic file uploads in node
-* Listening to filesystem events given a parent directory usind inotify
+* File downloads (not thoroughly tested)
+* File uploads in node
+* Listening to filesystem events given a parent directory using inotify
 * Hashing on server and client
 * Directory structure on server
 * Server database backend to track uploaded files
 * Client database to track file synchronization with server
-
-To Do:
-------
-
-* File downloads
-* Websocket connection between client and server
-* Priority queue on client and basic server support for priority
-* Settings manager to add or remove directories to synchronize
-* Expand searching for documents
-
-Ideas for expansion:
---------------------
-
-* File blacklist and single file synchronization
-* Directory blacklist
-* Support for multiple partitions based on UUID or GUID
-* Delay synchronization if system is in use
-* Custom priority scripts (user defined)
-* Support for multiple platforms (Windows, Mac, and possibly smartphones)
-* Resume halted uploads/downloads
-* Synchronize settings (Windows registry, smartphone settings, etc)
