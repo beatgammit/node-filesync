@@ -20,6 +20,8 @@ var require;
 		qs = require('qs'),
 		util = require('util'),
 		handleUpload = require("./lib/import.js"),
+		compress = require('compressor'),
+		Tar = require("tar-async"),
 		server;
 
 	// try to rename first, copy as a backup plan
@@ -138,6 +140,74 @@ var require;
 		}
 	}
 
+	function handleDownload(req, res, next){
+		var tape, gzip;
+		req.params.files = [{path: "./lib/dbaccess.js"}, {path: "./lib/import.js"}];
+		
+		gzip = new compress.GzipStream();
+		gzip.setEncoding('binary');
+		gzip.addListener('data', function(data) {
+			res.write(data, 'binary');
+		}).addListener('error', function(error) {
+			console.log(error);
+			throw error;
+		}).addListener('end', function() {
+			res.end();
+		});
+
+		tape = new Tar({
+			consolidate: true,
+			output: gzip
+		});
+
+		tape.on('data', function (data) {
+			gzip.write(data);
+		});
+		tape.on('error', function (error) {
+			console.log(error);
+			throw error;
+		});
+		tape.on('end', function () {
+			gzip.close();
+		});
+
+
+		if(req.params.files){
+			res.writeHead(200, {'Content-Type': 'application/x-gzip'});
+
+			req.params.files.forEachAsync(function(cb, item){
+				tape.append(item.path, function(err){
+					if(err){
+						console.log(err);
+						throw error;
+					}
+
+					cb();
+				});
+			}).then(function(){
+				tape.close();
+			});
+			return;
+		}else if(req.params.path || filePath){
+			if(!req.params.path){
+				req.params.path = filePath;
+			}
+			res.writeHead(200, {'Content-Type': 'application/x-gzip'});
+
+			tape.append(req.params.path, function(err){
+				if(err){
+					console.log(err);
+					throw error;
+				}
+
+				tape.close();
+			});
+			return;
+		}else{
+			return next();
+		}
+	}
+
 	function checkStatus(req, res, next){
 		var bFirst = true;
 
@@ -165,7 +235,7 @@ var require;
 		app.post("/file", handleUpload);
 		app.post("/check", checkStatus);
 		// doesn't work yet
-		//app.get("/file", handleDownload);
+		app.get("/file", handleDownload);
 		app.get("/meta/:field/:value?", handleMeta);
 		app.post("/register", handleRegister);
 		app.get("/register", handleRegister);
