@@ -10,9 +10,8 @@
 		mime = require('mime'),
 		FileStat = require('filestat'),
 		dbaccess = require('../dbaccess'),
-		hashAlgo = "md5",
-		regex = /(..)(..)(..)(..).*/,
-		doc_root = "./media/";
+		utils = require('../utils'),
+		hashAlgo = "md5";
 
 	function readFile(filePath, callback) {
 		var readStream, hash = crypto.createHash(hashAlgo);
@@ -36,14 +35,9 @@
 	}
 
 	function saveToFs(md5, filePath, callback) {
-		var m, newPath;
-
-		m = md5.match(regex);
-		newPath = path.join(doc_root, m[1], m[2], m[3], m[4]);
+		var newPath = utils.hashToPath(md5);
 
 		path.exists(newPath, function (exists) {
-			newPath = path.join(newPath, m[0]);
-
 			if (exists) {
 				fs.move(filePath, newPath, function (err) {
 					callback(err, newPath);

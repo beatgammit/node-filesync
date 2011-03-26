@@ -1,13 +1,37 @@
 (function () {
 	"use strict";
 
+	require('futures/forEachAsync');
+
 	var compress = require('compressor'),
-		Tar = require("tar-async");
+		Tar = require("tar-async"),
+		utils = require('../utils');
+
+	function getPathArray(files, callback) {
+		var fileArray = [];
+
+		if (!files) {
+			return callback(fileArray);
+		}
+
+		files.forEachAsync(function (next, file) {
+			var path = utils.hashToPath(file.md5);
+
+			path.exists(path, function (exists) {
+				if (exists) {
+					fileArray.push(path);
+				}
+
+				next();
+			});
+		}).then(function () {
+			callback(fileArray);
+		});
+	}
 
 	function handleDownload(req, res, next) {
 		var tape, gzip;
-		req.params.files = [{path: "./lib/dbaccess.js"}, {path: "./lib/import.js"}];
-		
+
 		gzip = new compress.GzipStream();
 		gzip.setEncoding('binary');
 		gzip.addListener('data', function (data) {
@@ -35,12 +59,11 @@
 			gzip.close();
 		});
 
-
-		if (req.params.files) {
+		getPathArray(req.params.files, function (files) {
 			res.writeHead(200, {'Content-Type': 'application/x-gzip'});
 
-			req.params.files.forEachAsync(function (cb, item) {
-				tape.append(item.path, function (err) {
+			files.forEachAsync(function (cb, item) {
+				tape.append(item, function (err) {
 					if (err) {
 						console.log(err);
 						throw err;
@@ -51,23 +74,7 @@
 			}).then(function () {
 				tape.close();
 			});
-			return;
-		} else if (req.params.path) {
-			res.writeHead(200, {'Content-Type': 'application/x-gzip'});
-
-			tape.append(req.params.path, function (err) {
-				if (err) {
-					console.log(err);
-					throw err;
-				}
-
-				tape.close();
-			});
-
-			return;
-		} else {
-			return next();
-		}
+		});
 	}
 
 	module.exports = handleDownload;
