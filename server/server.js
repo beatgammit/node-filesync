@@ -7,7 +7,6 @@ var require;
 	"use strict";
 
 	require('noop');
-	//require('long-stack-traces');
 	require('futures/forEachAsync');
 
 	var connect = require('connect'),
@@ -16,8 +15,7 @@ var require;
 		fs = require('fs'),
 		util = require('util'),
 		handleUpload = require("./lib/import"),
-		routes = require('./lib/routes'),
-		server;
+		routes = require('./lib/routes');
 
 	// try to rename first, copy as a backup plan
 	fs.move = function (oldPath, newPath, cb) {
@@ -70,17 +68,13 @@ var require;
 		app.get("/register", routes.register);
 	}
 
-	server = connect(
-		// the new connect change broke this
-		//auth([ auth.Http({ validatePassword: validateUserPassword }) ]),
+	connect(
 		connect.basicAuth(validateUserPassword),
 		form({keepExtensions: true}),
 		connect.bodyParser(),
 		connect.router(routing),
 		connect.static("./")
-	);
-
-	server.listen(8022);
+	).listen(8022);
 
 	console.log("Server listening on port 8022");
 }());
