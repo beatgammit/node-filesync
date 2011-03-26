@@ -1,5 +1,7 @@
 (function () {
 	"use strict";
+	
+	var dbaccess = require('../dbaccess');
 
 	function checkStatus(req, res, next) {
 		var bFirst = true;
