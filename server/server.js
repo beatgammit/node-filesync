@@ -14,7 +14,6 @@ var require;
 		form = require('connect-form'),
 		fs = require('fs'),
 		util = require('util'),
-		handleUpload = require("./lib/import"),
 		routes = require('./lib/routes');
 
 	// try to rename first, copy as a backup plan
@@ -55,17 +54,17 @@ var require;
 
 	function routing(app) {
 		// default to upload, may change in the future
-		app.post("/", handleUpload);
-		app.post("/file", handleUpload);
-		app.post("/check", routes.check);
+		app.post("/", routes.post.upload);
+		app.post("/file", routes.post.pload);
+		app.post("/check", routes.post.check);
 
 		// kinda works
-		app.get("/file", routes.download);
-		app.get("/meta/:field/:value?", routes.meta);
+		app.get("/file", routes.get.download);
+		app.get("/meta/:field/:value?", routes.get.meta);
 
 		// I don't care whether it's a post or a get request
-		app.post("/register", routes.register);
-		app.get("/register", routes.register);
+		app.post("/register", routes.post.register);
+		app.get("/register", routes.get.register);
 	}
 
 	connect(

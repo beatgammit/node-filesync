@@ -1,4 +1,6 @@
-(function (){
+(function () {
+	"use strict";
+
 	require('futures/forEachAsync');
 
 	var fs = require('fs'),
@@ -6,53 +8,52 @@
 		path = require('path'),
 		exec = require('child_process').exec,
 		mime = require('mime'),
-		FileStat = require('filestat.js'),
-		dbaccess = require('./dbaccess'),
+		FileStat = require('filestat'),
+		dbaccess = require('../dbaccess'),
 		hashAlgo = "md5",
 		regex = /(..)(..)(..)(..).*/,
 		doc_root = "./media/";
 
-	function readFile(filePath, callback){
-		var readStream,
-			hash = crypto.createHash(hashAlgo);
+	function readFile(filePath, callback) {
+		var readStream, hash = crypto.createHash(hashAlgo);
 
 		readStream = fs.createReadStream(filePath);
 
-		readStream.on('data', function(data){
+		readStream.on('data', function (data) {
 			hash.update(data);
 		});
 
-		readStream.on('error', function(err){
+		readStream.on('error', function (err) {
 			console.log("Read Error: " + err.toString());
 			readStream.destroy();
 			fs.unlink(filePath);
 			callback(err);
 		});
 
-		readStream.on('end', function(){
+		readStream.on('end', function () {
 			callback(null, hash.digest("hex"));
 		});
 	}
 
-	function saveToFs(md5, filePath, callback){
+	function saveToFs(md5, filePath, callback) {
 		var m, newPath;
 
 		m = md5.match(regex);
 		newPath = path.join(doc_root, m[1], m[2], m[3], m[4]);
 
-		path.exists(newPath, function(exists){
+		path.exists(newPath, function (exists) {
 			newPath = path.join(newPath, m[0]);
 
-			if(exists){
+			if (exists) {
 				fs.move(filePath, newPath, function (err) {
 					callback(err, newPath);
 				});
 				return;
 			}
 
-			exec('mkdir -p ' + newPath, function(err, stdout, stderr){
+			exec('mkdir -p ' + newPath, function (err, stdout, stderr) {
 				var tError;
-				if(err || stderr) {
+				if (err || stderr) {
 					console.log("Err: " + (err ? err : "none"));
 					console.log("stderr: " + (stderr ? stderr : "none"));
 					tError = {error: err, stderr: stderr, stdout: stdout};
@@ -67,17 +68,17 @@
 		});
 	}
 
-	function addKeysToFileStats(fieldNames, stats){
+	function addKeysToFileStats(fieldNames, stats) {
 		var fileStats = [];
 
-		stats.forEach(function(item) {
-			fileStat = FileStat();
+		stats.forEach(function (item) {
+			var fileStat = new FileStat();
 
-			item.forEach(function(fieldValue, i) {
+			item.forEach(function (fieldValue, i) {
 				fileStat[fieldNames[i]] = fieldValue;
 			});
 
-			if(fileStat.path){
+			if (fileStat.path) {
 				fileStat.type = mime.lookup(fileStat.path);
 			}
 
@@ -88,11 +89,11 @@
 		return fileStats;
 	}
 
-	function importFile(fileStat, tmpFile, username, callback){
+	function importFile(fileStat, tmpFile, username, callback) {
 		var oldPath;
 
 		oldPath = tmpFile.path;
-		readFile(oldPath, function(err, md5){
+		readFile(oldPath, function (err, md5) {
 			if (err) {
 				fileStat.err = err;
 				callback(err, fileStat);
@@ -100,19 +101,18 @@
 			}
 
 			// if we have an md5sum and they don't match, abandon ship
-			if(fileStat.md5 && fileStat.md5 !== md5){
+			if (fileStat.md5 && fileStat.md5 !== md5) {
 				callback("MD5 sums don't match");
 				return;
 			}
 
 			fileStat.md5 = md5;
 
-			fileStat.genTmd5(function(error, tmd5){
-				if(!error){
+			fileStat.genTmd5(function (error, tmd5) {
+				if (!error) {
 					fileStat.tmd5 = tmd5;
 			
-					saveToFs(fileStat.md5, oldPath, function(fserr){
-						var fileDoc;
+					saveToFs(fileStat.md5, oldPath, function (fserr) {
 						if (fserr) {
 							// ignoring possible unlink error
 							fs.unlink(oldPath);
@@ -127,12 +127,12 @@
 		});
 	}
 
-	function handleUpload(req, res, next){
-		if(!req.form){
+	function handleUpload(req, res, next) {
+		if (!req.form) {
 			return next();
 		}
 
-		req.form.complete(function(err, fields, files){
+		req.form.complete(function (err, fields, files) {
 			var fileStats, bFirst;
 
 			fields.statsHeader = JSON.parse(fields.statsHeader);
@@ -155,7 +155,7 @@
 						fileStat.err = err;
 
 						// we only want to add a comma after the first one
-						if(!bFirst){
+						if (!bFirst) {
 							res.write(",");
 						}
 						bFirst = false;
@@ -171,7 +171,7 @@
 				});
 			}
 
-			fileStats.forEachAsync(handleFileStat).then(function(){
+			fileStats.forEachAsync(handleFileStat).then(function () {
 				// end response array
 				res.end("]");
 			});
@@ -179,4 +179,4 @@
 	}
 
 	module.exports = handleUpload;
-})();
+}());
