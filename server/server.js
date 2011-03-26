@@ -55,7 +55,7 @@ var require;
 	function routing(app) {
 		// default to upload, may change in the future
 		app.post("/", routes.post.upload);
-		app.post("/file", routes.post.pload);
+		app.post("/file", routes.post.upload);
 		app.post("/check", routes.post.check);
 
 		// kinda works
