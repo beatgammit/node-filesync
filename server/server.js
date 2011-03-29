@@ -14,7 +14,8 @@ var require;
 		form = require('connect-form'),
 		fs = require('fs'),
 		util = require('util'),
-		routes = require('./lib/routes');
+		routes = require('./lib/routes'),
+		settings = require('./settings');
 
 	// try to rename first, copy as a backup plan
 	fs.move = function (oldPath, newPath, cb) {
@@ -57,10 +58,21 @@ var require;
 		app.post("/", routes.post.upload);
 		app.post("/file", routes.post.upload);
 		app.post("/check", routes.post.check);
+		app.post("/settings", function (req, res, next) {
+			fs.writeFile('settings.json', JSON.stringify(req.body));
 
+			res.writeHead(200, {'Content-Type': 'application/json'});
+			res.end(JSON.stringify(settings));
+		});
+
+		app.get("/admin", routes.get.admin);
 		// kinda works
 		app.get("/file", routes.get.download);
 		app.get("/meta/:field/:value?", routes.get.meta);
+		app.get("/settings", function (req, res, next) {
+			res.writeHead(200, {'Content-Type': 'application/json'});
+			res.end(JSON.stringify(settings));
+		});
 
 		// I don't care whether it's a post or a get request
 		app.post("/register", routes.post.register);
@@ -73,7 +85,7 @@ var require;
 		connect.bodyParser(),
 		connect.router(routing),
 		connect.static("./")
-	).listen(8022);
+	).listen(settings.port);
 
-	console.log("Server listening on port 8022");
+	console.log("Server listening on port " + settings.port);
 }());

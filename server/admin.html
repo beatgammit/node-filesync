@@ -1,0 +1,62 @@
+<html>
+
+<head>
+<title>Management Console</title>
+<script src="./jquery.min.js"></script>
+
+<script>
+$(document).ready(function () {
+	$("#clearDB").click(function () {
+		alert("Nice try...");
+	});
+
+	$.ajax({
+		url: '/settings',
+		dataType: 'json',
+		success: function (data) {
+			$("#port").val(data.port);
+		}
+	});
+
+	$("#apply").click(function () {
+		var settings = {
+			port: $("#port").val()
+		};
+
+		$.ajax({
+			type: 'POST',
+			url: '/settings',
+			data: settings,
+			dataType: 'json',
+			error: function (err) {
+				alert("Error:" + err);
+			},
+			success: function (data) {
+				alert("Success");
+			},
+			complete: function () {
+				alert("Complete");
+			}
+		});
+	});
+});
+</script>
+</head>
+
+<body>
+
+<button id="clearDB">Empty Database</button>
+
+<br />
+<br />
+
+Port: <input type='textfield' id='port' />
+
+<br />
+<br />
+
+<button id='apply'>Apply</button>
+
+</body>
+
+</html>

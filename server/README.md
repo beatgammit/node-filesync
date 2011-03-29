@@ -15,13 +15,16 @@ Source Guide
 
 The source is laid out pretty logically, but here is a little guide to get you familiar with it... after all, this project could use all the help it can get.
 
-* `server`- connect server, drives everything
+* `server.js`- connect server, drives everything
+* `admin.js`- simple JSON for doing admin authentication while in testing
+* `admin.html`- administration console
 * `users.js`- simple JSON for doing authentication while in testing
 * `lib`- this is where everything useful goes
   * `dbaccess.js`- all database access must go through this module
   * `routes.js`- defines the routes used in connect.router in the server
   * `utils.js`- extra functions that are globally useful
 * `lib/routes`- definitions of the different route functions
+  * `admin.js`- loads admin console, may be moved to `/` in the future
   * `check.js`- allows client to check the server to see if a file exists
   * `download.js`- like the name implies, handles download requests
   * `meta.js`- allows client to get a list of files by mime-type
@@ -35,6 +38,9 @@ Clients interract with the server through resources.  Each client must authentic
 
 Get requests:
 
+* `/admin`
+  * loads admin console
+  * requires admin access
 * `/file`
   * takes an array of objects each with an md5 hash
   * returns a gzipped tarball with files (named by md5 hash)
