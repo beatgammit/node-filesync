@@ -5,6 +5,8 @@
 <script src="./jquery.min.js"></script>
 
 <script>
+var settings;
+
 $(document).ready(function () {
 	$("#clearDB").click(function () {
 		alert("Nice try...");
@@ -14,14 +16,22 @@ $(document).ready(function () {
 		url: '/settings',
 		dataType: 'json',
 		success: function (data) {
+			settings = data;
 			$("#port").val(data.port);
 		}
 	});
 
 	$("#apply").click(function () {
-		var settings = {
-			port: $("#port").val()
-		};
+		var answer;
+		answer = confirm("This will start the server on a different port." +
+						"\nCurrently connected clients will not be affected." +
+						"\n\nAny new clients will have to access the new port" +
+						"\n\nAre you sure you want to continue?");
+		if (!answer) {
+			return;
+		}
+
+		settings.port = $("#port").val();
 
 		$.ajax({
 			type: 'POST',
@@ -29,13 +39,10 @@ $(document).ready(function () {
 			data: settings,
 			dataType: 'json',
 			error: function (err) {
-				alert("Error:" + err);
 			},
 			success: function (data) {
-				alert("Success");
 			},
 			complete: function () {
-				alert("Complete");
 			}
 		});
 	});

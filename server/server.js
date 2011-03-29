@@ -15,7 +15,8 @@ var require;
 		fs = require('fs'),
 		util = require('util'),
 		routes = require('./lib/routes'),
-		settings = require('./settings');
+		settings = require('./settings'),
+		server;
 
 	// try to rename first, copy as a backup plan
 	fs.move = function (oldPath, newPath, cb) {
@@ -59,10 +60,16 @@ var require;
 		app.post("/file", routes.post.upload);
 		app.post("/check", routes.post.check);
 		app.post("/settings", function (req, res, next) {
-			fs.writeFile('settings.json', JSON.stringify(req.body));
+			settings = req.body;
+			console.log(req.body);
+			fs.writeFile('settings.json', JSON.stringify(settings));
 
 			res.writeHead(200, {'Content-Type': 'application/json'});
 			res.end(JSON.stringify(settings));
+
+			server.close();
+
+			initServer();
 		});
 
 		app.get("/admin", routes.get.admin);
@@ -79,13 +86,19 @@ var require;
 		app.get("/register", routes.get.register);
 	}
 
-	connect(
-		connect.basicAuth(validateUserPassword),
-		form({keepExtensions: true}),
-		connect.bodyParser(),
-		connect.router(routing),
-		connect.static("./")
-	).listen(settings.port);
+	function initServer () {
+		server = connect(
+			connect.basicAuth(validateUserPassword),
+			form({keepExtensions: true}),
+			connect.bodyParser(),
+			connect.router(routing),
+			connect.static(settings.doc_root)
+		);
+	
+		server.listen(settings.port, function () {
+			console.log("Server listening on port " + settings.port);
+		});
+	}
 
-	console.log("Server listening on port " + settings.port);
+	initServer();
 }());
