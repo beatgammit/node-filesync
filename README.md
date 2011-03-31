@@ -5,7 +5,7 @@ Node-filesync is a file synchronization system utilizing NodeJS in both the clie
 
 
 Client
-======
+------
 
 The client communicates with the server through a websocket and pulls updates from the server when necessary. The various components are:
 
@@ -25,7 +25,7 @@ The client communicates with the server through a websocket and pulls updates fr
 
 
 Server
-======
+------
 
 The server communicates changes through open websockets with clients and serves file upload and download requests. The particur components are as follows:
 
@@ -45,34 +45,12 @@ The server communicates changes through open websockets with clients and serves 
 State of the project:
 =====================
 
-This is a work in progress. This section should give a basic notion of what should work and what has not been implemented yet.
+This is a work in progress and in pre-alpha stage.  These features are implemented and seem to work:
 
-Finished:
----------
-
-* Basic file uploads in node
-* Listening to filesystem events given a parent directory usind inotify
+* File downloads (not thoroughly tested)
+* File uploads in node
+* Listening to filesystem events given a parent directory using inotify
 * Hashing on server and client
 * Directory structure on server
-
-To Do:
-------
-
-* File downloads
-* Websocket connection between client and server
-* Priority queue on client and basic server support for priority
 * Server database backend to track uploaded files
 * Client database to track file synchronization with server
-* Settings manager to add or remove directories to synchronize
-
-Ideas for expansion:
---------------------
-
-* File blacklist and single file synchronization
-* Directory blacklist
-* Support for multiple partitions based on UUID or GUID
-* Delay synchronization if system is in use
-* Custom priority scripts (user defined)
-* Support for multiple platforms (Windows, Mac, and possibly smartphones)
-* Resume halted uploads/downloads
-* Synchronize settings (Windows registry, smartphone settings, etc)

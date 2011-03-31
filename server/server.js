@@ -7,33 +7,27 @@ var require;
 	"use strict";
 
 	require('noop');
-	require('long-stack-traces');
+	require('futures/forEachAsync');
 
 	var connect = require('connect'),
-        auth = require('connect-auth'),
         authdb = require('./users'),
-		staticProvider = require("./static"),
 		form = require('connect-form'),
 		fs = require('fs'),
-		url = require('url'),
-		qs = require('qs'),
 		util = require('util'),
-		handleUpload = require("./lib/import.js"),
-		server;
+		routes = require('./lib/routes');
 
 	// try to rename first, copy as a backup plan
 	fs.move = function (oldPath, newPath, cb) {
-		fs.rename(oldPath, newPath, function(err){
+		fs.rename(oldPath, newPath, function (err) {
 			if (!err) {
 				return doop(cb);
 			}
 
 			// backup plan
-			//console.log("Move Error: " + err);
 			var readStream = fs.createReadStream(oldPath),
 				writeStream = fs.createWriteStream(newPath);
 
-			util.pump(readStream, writeStream, function(err) {
+			util.pump(readStream, writeStream, function (err) {
 				if (err) {
 					return doop(cb, err);
 				}
@@ -43,57 +37,43 @@ var require;
 	};
 
 	function validateUserPassword(username, password, onSuccess, onFailure) {
-		console.log("UName");
 		if (authdb[username] && authdb[username] === password) {
-			return onSuccess();
-		}
-		onFailure(new Error("Username and password don't pass"));
-	}
-
-	function handleMeta(req, res, next){
-		var urlObj, query, dbaccess = require('./lib/dbaccess'), mimeType;
-
-		switch(req.params.field){
-			case "type":{
-				if(req.params.value && req.params.ext){
-					mimeType = req.params.value + "/" + req.params.ext;
-					dbaccess.getByMimeType(mimeType, function(err, docArray){
-						console.log(JSON.stringify(docArray));
-						res.writeHead(200, {'Content-Type': 'application/json'});
-						res.end(JSON.stringify(docArray));
-					});
-				}else{
-					res.writeHead(200, {'Content-Type': 'application/json'});
-					res.end("{err: 'Not implemented, sorry'}");
-				}
-				break;
-			}
-			default:{
-				res.writeHead(200, {'Content-Type': 'application/json'});
-				res.end("{err: 'Not implemented, sorry'}");
-				break;
+			if (onSuccess) {
+				return onSuccess();
+			} else {
+				// using basicAuth
+				return true;
 			}
 		}
+
+		if (onFailure) {
+			onFailure(new Error("Username and password don't pass"));
+		}
+		return false;
 	}
 
-	function routing(app){
-		app.post("/", function(req, res, next){
-			handleUpload(req, res, next);
-		});
-		app.post("/file", handleUpload);
-		// doesn't work yet
-		//app.get("/file", handleDownload);
-		app.get("/meta/:field/:value?/:ext", handleMeta);
+	function routing(app) {
+		// default to upload, may change in the future
+		app.post("/", routes.post.upload);
+		app.post("/file", routes.post.upload);
+		app.post("/check", routes.post.check);
+
+		// kinda works
+		app.get("/file", routes.get.download);
+		app.get("/meta/:field/:value?", routes.get.meta);
+
+		// I don't care whether it's a post or a get request
+		app.post("/register", routes.post.register);
+		app.get("/register", routes.get.register);
 	}
 
-	server = connect.createServer(
-		auth([ auth.Http({ validatePassword: validateUserPassword }) ]),
+	connect(
+		connect.basicAuth(validateUserPassword),
 		form({keepExtensions: true}),
+		connect.bodyParser(),
 		connect.router(routing),
-		staticProvider()
-	);
-
-	server.listen(8022);
+		connect.static("./")
+	).listen(8022);
 
 	console.log("Server listening on port 8022");
 }());

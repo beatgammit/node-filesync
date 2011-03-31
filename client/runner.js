@@ -13,8 +13,8 @@
     batch,
     options = {
       start: './tests',
-      host: '192.168.1.29', 
-      //host: 'localhost', 
+      //host: '192.168.1.101', 
+      host: 'localhost', 
       port: 8022,
       user: 'coolaj86',
       password: 'cr4zym0nk3y'
