@@ -2,10 +2,99 @@
 
 <head>
 <title>Management Console</title>
-<script src="./jquery.min.js"></script>
+<script src="js/jquery.min.js"></script>
+<script src="js/jquery-ui-1.8.11.custom.min.js"></script>
+<link rel="stylesheet" type="text/css" href="css/ui-darkness/jquery-ui-1.8.11.custom.css" />
+<link rel="stylesheet" type="text/css" href="css/admin.css" />
 
 <script>
 var settings;
+
+function doApply() {
+	var port, portConfirm, doc_root, doc_rootConfirm,
+		bContinue = true;
+
+	portConfirm = "This will start the server on a different port." +
+				"\nCurrently connected clients will not be affected, but " +
+				"new clients will have to use the new port" +
+				"\n\nAre you sure you want to continue?";
+
+	port = parseInt($("#port").val());
+
+	if (port && port !== settings.port) {
+		bContinue = confirm(portConfirm);
+	}
+
+	if (!bContinue) {
+		return;
+	}
+
+	doc_rootConfirm = "Changing the doc_root may bring undesired results." +
+					"\n\nAre you sure you want to change this?";
+
+	doc_root = $("#doc_root").val();
+
+	if (doc_root && doc_root !== settings.doc_root) {
+		bContinue = confirm(doc_rootConfirm);
+	}
+
+	if (!bContinue) {
+		return;
+	}
+
+	settings.port = port;
+	settings.doc_root = doc_root;
+
+	$.ajax({
+		type: 'POST',
+		url: '/settings',
+		data: settings,
+		dataType: 'json'
+	});
+}
+
+function longPoll(cpus) {
+	var sendStuff = {
+		'ram': true,
+		'cpu': true
+	};
+
+	$.ajax({
+		url: '/settings',
+		data: sendStuff,
+		dataType: 'json',
+		type: 'GET',
+		success: function (data) {
+			var  cpu = 1, ram, ramDivisor = Math.pow(1024, 2);
+
+			data.cpus.forEach(function (item) {
+				var total = 0, stat, cpuElem;
+				total = item.user + item.nice + item.sys + item.idle + item.irq;
+
+				stat = {
+					total: (item.user + item.nice + item.sys + item.irq) / total,
+					user: item.user / total,
+					nice: item.nice / total,
+					sys: item.sys / total,
+					irq: item.irq / total
+				};
+
+				$("#user" + cpu).progressbar({value: stat.user * 100});
+				$("#nice" + cpu).progressbar({value: stat.nice * 100});
+				$("#sys" + cpu).progressbar({value: stat.sys * 100});
+				$("#irq" + cpu).progressbar({value: stat.irq * 100});
+				$("#total" + cpu).progressbar({value: stat.total * 100});
+			});
+
+			ram = (data.ram.total - data.ram.free) / ramDivisor;
+
+			$("#ramTotal").html("RAM: " + parseInt(ram) + " / " + parseInt(data.ram.total / ramDivisor) + "MB");
+			$("#ram1").progressbar({value: (data.ram.total - data.ram.free) / data.ram.total * 100});
+
+			longPoll(cpus);
+		}
+	});
+}
 
 $(document).ready(function () {
 	$("#clearDB").click(function () {
@@ -17,40 +106,87 @@ $(document).ready(function () {
 		dataType: 'json',
 		success: function (data) {
 			settings = data;
-			$("#port").val(data.port);
+			$("#port").val(settings.port);
+			$("#doc_root").val(settings.doc_root);
 		}
 	});
 
-	$("#apply").click(function () {
-		var answer;
-		answer = confirm("This will start the server on a different port." +
-						"\nCurrently connected clients will not be affected." +
-						"\n\nAny new clients will have to access the new port" +
-						"\n\nAre you sure you want to continue?");
-		if (!answer) {
-			return;
+	var sendStuff = {
+		'ram': true,
+		'cpu': true
+	};
+
+	$.ajax({
+		url: '/settings',
+		data: sendStuff,
+		dataType: 'json',
+		type: 'GET',
+		success: function (data) {
+			var stats = [], cpu = 1, ram, ramDivisor = Math.pow(1024, 2);
+
+			data.cpus.forEach(function (item) {
+				var total = 0, stat, cpuElem;
+				total = item.user + item.nice + item.sys + item.idle + item.irq;
+
+				stat = {
+					total: (item.user + item.nice + item.sys + item.irq) / total,
+					user: item.user / total,
+					nice: item.nice / total,
+					sys: item.sys / total,
+					irq: item.irq / total
+				};
+
+				stats.push(stat);
+
+				cpuElem = $("<div></div>").attr("id", "cpu" + cpu);
+				cpuElem.append("USER: ").append($("<div></div>").attr("id", "user" + cpu).attr("class", "prog"));
+				cpuElem.append("NICE: ").append($("<div></div>").attr("id", "nice" + cpu).attr("class", "prog"));
+				cpuElem.append("SYS: ").append($("<div></div>").attr("id", "sys" + cpu).attr("class", "prog"));
+				cpuElem.append("IRQ: ").append($("<div></div>").attr("id", "irq" + cpu).attr("class", "prog"));
+				cpuElem.append("TOTAL: ").append($("<div></div>").attr("id", "total" + cpu).attr("class", "prog"));
+
+				if (cpu > 1) {
+					$("#cpus").append($("<br></br>").append("<br></br>"));
+				}
+				$("#cpus").append("CPU " + cpu).append(cpuElem);
+
+				$("#user" + cpu).progressbar({value: stat.user * 100});
+				$("#nice" + cpu).progressbar({value: stat.nice * 100});
+				$("#sys" + cpu).progressbar({value: stat.sys * 100});
+				$("#irq" + cpu).progressbar({value: stat.irq * 100});
+				$("#total" + cpu).progressbar({value: stat.total * 100});
+				cpu += 1;
+			});
+
+			ram = (data.ram.total - data.ram.free) / ramDivisor;
+
+			$("#ram").append($("<div></div>").attr("id", "ramTotal"));
+			$("#ramTotal").html("RAM: " + parseInt(ram) + " / " + parseInt(data.ram.total / ramDivisor) + "MB");
+
+			$("#ram").append($("<div></div>").attr("id", "ram1").attr("class", "prog"));
+			$("#ram1").progressbar({value: (data.ram.total - data.ram.free) / data.ram.total * 100});
+
+			longPoll(cpu - 1);
 		}
-
-		settings.port = $("#port").val();
-
-		$.ajax({
-			type: 'POST',
-			url: '/settings',
-			data: settings,
-			dataType: 'json',
-			error: function (err) {
-			},
-			success: function (data) {
-			},
-			complete: function () {
-			}
-		});
 	});
+
+
+	$("#apply").click(doApply);
 });
 </script>
 </head>
 
 <body>
+
+<div id="cpus" ></div>
+
+<br />
+<br />
+
+<div id="ram"></div>
+
+<br />
+<br />
 
 <button id="clearDB">Empty Database</button>
 
@@ -58,6 +194,11 @@ $(document).ready(function () {
 <br />
 
 Port: <input type='textfield' id='port' />
+
+<br />
+<br />
+
+Document root: <input type='textfield' id='doc_root' />
 
 <br />
 <br />
