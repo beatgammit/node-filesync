@@ -58,6 +58,8 @@ TODO wireshark a real example exactly as it is.
 
 Note: this is fairly similar, but not exactly what a request will look like
 
+Adapted from: https://github.com/coolaj86/http-examples/raw/master/multipart-form/3-post-multiple-inputs.http.raw
+
     POST / HTTP/1.1
     Host: 192.168.1.29:8022
     User-Agent: Node.JS (AHR)
