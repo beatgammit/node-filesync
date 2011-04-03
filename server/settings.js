@@ -2,9 +2,10 @@
 	"use strict";
 
 	var fs = require('fs'),
+		path = require('path'),
 		data;
 
-	data = fs.readFileSync('settings.json', 'utf8');
+	data = fs.readFileSync(path.join(__dirname, 'settings.json'), 'utf8');
 
 	module.exports = JSON.parse(data);
 }());
