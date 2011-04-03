@@ -74,6 +74,7 @@ var require;
 			tSum.push(tCPU);
 		});
 
+		// timeout necessary to get difference in cpu usage
 		setTimeout(function () {
 			var endTime, elapsedTime;
 
@@ -130,7 +131,10 @@ var require;
 				res.end(JSON.stringify(tReturn));
 			};
 
-			if (query) {
+			if (Object.keys(query).length > 0) {
+				if (query.uptime) {
+					tReturn.uptime = os.uptime();
+				}
 				if (query.ram) {
 					tReturn.ram = {
 						'free': os.freemem(),
