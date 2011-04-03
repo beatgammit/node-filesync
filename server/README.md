@@ -5,7 +5,7 @@ Connect server that handles file upload and download requests, as well as basic 
 
 File data is stored in a CouchDB database and files are stored on the system.
 
-When you run the server and test it, a directory will be created in the directory that the server is run in.  This directory, `media`, has all of the uploaded data organized by md5 sum.  Directory structure goes 4 levels down using the md5 sum in 2 character chunks as directory names and file names are the md5 sums.  For example:
+Directory structure goes 4 levels down using the md5 sum in 2 character chunks as directory names and file names are the md5 sums.  For example:
 
 MD5- `be121740bf988b2225a313fa1f107ca1`
 Path- `be/12/17/40/be121740bf988b2225a313fa1f107ca1`
@@ -16,6 +16,12 @@ Source Guide
 The source is laid out pretty logically, but here is a little guide to get you familiar with it... after all, this project could use all the help it can get.
 
 * `server.js`- connect server, drives everything
+* `settings.js`- settings for the server, loaded from `settings.json`
+* `settings.json`- settings file for the server
+  * `doc_root`- document root for static file access (such as for admin.html)
+  * `port`- port that the server runs on
+  * `cpu_timeout`- used in admin console; affects delay in CPU monitor update
+  * `media_root`- root for uploaded file directory tree
 * `admin.js`- simple JSON for doing admin authentication while in testing
 * `admin.html`- administration console
 * `users.js`- simple JSON for doing authentication while in testing
@@ -36,7 +42,7 @@ Usage Guide
 
 Clients interract with the server through resources.  Each client must authenticate with the server through a simple username and password.  Data is not encrypted in any way.
 
-Get requests:
+**Get requests:**
 
 * `/admin`
   * loads admin console
@@ -57,7 +63,7 @@ Get requests:
 	* data- any extra data that should be stored
   * data is pulled from the query portion of the url
 
-Post requests:
+**Post requests:**
 
 * `/`
   * same as `/file`
