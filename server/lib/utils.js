@@ -2,12 +2,12 @@
 	"use strict";
 
 	var path = require('path'),
-		regex = /(..)(..)(..)(..).*/,
-		doc_root = "./media/";
+		settings = require("../settings"),
+		regex = /(..)(..)(..)(..).*/;
 	
 	function hashToPath(md5) {
 		var m = md5.match(regex),
-			newPath = path.join(doc_root, m[1], m[2], m[3], m[4], m[0]);
+			newPath = path.join(settings.media_root, m[1], m[2], m[3], m[4], m[0]);
 
 		return newPath;
 	}

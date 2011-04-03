@@ -1,1 +1,1 @@
-{"port":"8022","doc_root":"./","cpu_timeout":2000}
+{"port":"8022","doc_root":"./","cpu_timeout":"3000", "media_root": "./media/"}
