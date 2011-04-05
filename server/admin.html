@@ -3,8 +3,6 @@
 <head>
 <title>Management Console</title>
 <script src="js/jquery.js"></script>
-<script src="js/jquery-ui-1.8.11.custom.min.js"></script>
-<link rel="stylesheet" type="text/css" href="css/ui-darkness/jquery-ui-1.8.11.custom.css" />
 <link rel="stylesheet" type="text/css" href="css/admin.css" />
 
 <script>
@@ -85,21 +83,21 @@ function formatUptime(input) {
 	seconds = input;
 
 	if (years > 0) {
-		output += "Years: " + years + "; ";
+		output += years + " year" + (years > 1 ? "s, " : ", ");
 	}
 	if (months > 0) {
-		output += "Months: " + months + "; ";
+		output += months + " month" + (months > 1 ? "s, " : ", ");
 	}
 	if (days > 0) {
-		output += "Days: " + days + "; ";
+		output += days + " day" + (days > 1 ? "s, " : ", ");
 	}
 	if (hours > 0) {
-		output += "Hours: " + hours + "; ";
+		output += hours + " hour" + (hours > 1 ? "s, " : ", ");
 	}
 	if (minutes > 0) {
-		output += "Minutes: " + minutes + "; ";
+		output += minutes + " minute" + (minutes > 1 ? "s, " : ", ");
 	}
-	output += "Seconds: " + seconds;
+	output += seconds + " second" + (seconds > 1 ? "s" : "");
 
 	return output;
 }
@@ -119,25 +117,25 @@ function updateStuff(data) {
 			irq: item.irq / total
 		};
 		
-		$("#txt-user" + cpu).html("User: " + makePercentage(stat.user) + "%");
-		$("#txt-nice" + cpu).html("Nice: " + makePercentage(stat.nice)  + "%");
-		$("#txt-sys" + cpu).html("Sys: " + makePercentage(stat.sys) + "%");
-		$("#txt-irq" + cpu).html("Irq: " + makePercentage(stat.irq) + "%");
-		$("#txt-total" + cpu).html("Total: " + makePercentage(stat.total) + "%");
+		$("#user-label-cpu" + cpu).html("User: " + makePercentage(stat.user) + "%");
+		$("#nice-label-cpu" + cpu).html("Nice: " + makePercentage(stat.nice)  + "%");
+		$("#sys-label-cpu" + cpu).html("Sys: " + makePercentage(stat.sys) + "%");
+		$("#irq-label-cpu" + cpu).html("Irq: " + makePercentage(stat.irq) + "%");
+		$("#total-label-cpu" + cpu).html("Total: " + makePercentage(stat.total) + "%");
 
-		$("#bar-user" + cpu).progressbar({value: stat.user * 100});
-		$("#bar-nice" + cpu).progressbar({value: stat.nice * 100});
-		$("#bar-sys" + cpu).progressbar({value: stat.sys * 100});
-		$("#bar-irq" + cpu).progressbar({value: stat.irq * 100});
-		$("#bar-total" + cpu).progressbar({value: stat.total * 100});
+		$("#user-cpu" + cpu).attr('value', stat.user * 100);
+		$("#nice-cpu" + cpu).attr('value', stat.nice * 100);
+		$("#sys-cpu" + cpu).attr('value', stat.sys * 100);
+		$("#irq-cpu" + cpu).attr('value', stat.irq * 100);
+		$("#total-cpu" + cpu).attr('value', stat.total * 100);
 
 		cpu += 1;
 	});
 
 	ram = (data.ram.total - data.ram.free) / ramDivisor;
 
-	$("#ramTotal").html("RAM: " + parseInt(ram) + " / " + parseInt(data.ram.total / ramDivisor) + "MB");
-	$("#ram1").progressbar({value: (data.ram.total - data.ram.free) / data.ram.total * 100});
+	$("#ram-label").html("RAM: " + parseInt(ram) + " / " + parseInt(data.ram.total / ramDivisor) + "MB");
+	$("#ram-meter").attr('value', data.ram.total - data.ram.free);
 
 	$("#uptime").html("Server Uptime:\n<br />" + formatUptime(data.uptime));
 
@@ -185,37 +183,37 @@ $(document).ready(function () {
 		dataType: 'json',
 		type: 'GET',
 		success: function (data) {
-			var stats = [], cpu = 1, ram, ramDivisor = Math.pow(1024, 2), tElem;
+			var stats = [], cpu = 1, tElem;
 
 			data.cpus.forEach(function (item) {
 				var total = 0, cpuElem;
 				total = item.user + item.nice + item.sys + item.idle + item.irq;
 
-				cpuElem = $("<div></div>").attr("id", "cpu" + cpu);
+				cpuElem = $("<div></div>").attr('id', 'cpu' + cpu);
 
-				tElem = $("<div></div>").attr("id", "user" + cpu);
-				tElem.append($("<div></div>").attr("id", "txt-user" + cpu));
-				tElem.append($("<div></div>").attr("id", "bar-user" + cpu).attr("class", "prog"));
+				tElem = $("<div></div>").attr('id', 'user' + cpu);
+				tElem.append($("<div></div>").attr('id', 'user-label-cpu' + cpu));
+				tElem.append($("<meter></meter>").attr('id', 'user-cpu' + cpu).attr("class", "prog").attr('min', 0).attr('max', '100'));
 				cpuElem.append(tElem);
 
 				tElem = $("<div></div>").attr("id", "nice" + cpu);
-				tElem.append($("<div></div>").attr("id", "txt-nice" + cpu));
-				tElem.append($("<div></div>").attr("id", "bar-nice" + cpu).attr("class", "prog"));
+				tElem.append($("<div></div>").attr("id", "nice-label-cpu" + cpu));
+				tElem.append($("<meter></meter>").attr('id', 'nice-cpu' + cpu).attr("class", "prog").attr('min', 0).attr('max', '100'));
 				cpuElem.append(tElem);
 
 				tElem = $("<div></div>").attr("id", "sys" + cpu);
-				tElem.append($("<div></div>").attr("id", "txt-sys" + cpu));
-				tElem.append($("<div></div>").attr("id", "bar-sys" + cpu).attr("class", "prog"));
+				tElem.append($("<div></div>").attr("id", "sys-label-cpu" + cpu));
+				tElem.append($("<meter></meter>").attr('id', 'sys-cpu' + cpu).attr("class", "prog").attr('min', 0).attr('max', '100'));
 				cpuElem.append(tElem);
 
 				tElem = $("<div></div>").attr("id", "irq" + cpu);
-				tElem.append($("<div></div>").attr("id", "txt-irq" + cpu));
-				tElem.append($("<div></div>").attr("id", "bar-irq" + cpu).attr("class", "prog"));
+				tElem.append($("<div></div>").attr("id", "irq-label-cpu" + cpu));
+				tElem.append($("<meter></meter>").attr('id', 'irq-cpu' + cpu).attr("class", "prog").attr('min', 0).attr('max', '100'));
 				cpuElem.append(tElem);
 
 				tElem = $("<div></div>").attr("id", "total" + cpu);
-				tElem.append($("<div></div>").attr("id", "txt-total" + cpu));
-				tElem.append($("<div></div>").attr("id", "bar-total" + cpu).attr("class", "prog"));
+				tElem.append($("<div></div>").attr("id", "total-label-cpu" + cpu));
+				tElem.append($("<meter></meter>").attr('id', 'total-cpu' + cpu).attr("class", "prog").attr('min', 0).attr('max', '100'));
 				cpuElem.append(tElem);
 
 				if (cpu > 1) {
@@ -226,10 +224,7 @@ $(document).ready(function () {
 				cpu += 1;
 			});
 
-			ram = (data.ram.total - data.ram.free) / ramDivisor;
-
-			$("#ram").append($("<div></div>").attr("id", "ramTotal"));
-			$("#ram").append($("<div></div>").attr("id", "ram1").attr("class", "prog"));
+			$("#ram-meter").attr('min', 0).attr('max', data.ram.total);
 
 			updateStuff(data);
 			longPoll(sendStuff);
@@ -249,7 +244,10 @@ $(document).ready(function () {
 <br />
 <br />
 
-<div id="ram"></div>
+<div id="ram">
+<div id="ram-label"></div>
+<meter id="ram-meter" class="prog"></meter>
+</div>
 
 <br />
 <br />
